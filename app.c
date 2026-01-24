@@ -35,8 +35,7 @@
  *
  *
  *
- * Student edit: Add your name and email address here:
- * @student    Awesome Student, Awesome.Student@Colorado.edu
+ * @student    Donavon Facey, Dofa5688@Colorado.edu
  *
  *
  *
@@ -159,8 +158,7 @@ SL_WEAK void app_init(void)
   // This is called once during start-up.
   // Don't call any Bluetooth API functions until after the boot event.
 
-  // Student Edit: Add a call to gpioInit() here
-
+  gpioInit();
 
 
 } // app_init()
@@ -205,7 +203,12 @@ SL_WEAK void app_process_action(void)
 
   delayApprox(3500000);
 
+  gpioLed1SetOn();
+
+  delayApprox(3500000);
+
   gpioLed0SetOff();
+  gpioLed1SetOff();
 
 } // app_process_action()
 

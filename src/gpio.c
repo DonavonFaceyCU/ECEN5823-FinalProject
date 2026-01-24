@@ -13,8 +13,7 @@
                  drive strength setting. 
 
  *
- * Student edit: Add your name and email address here:
- * @student    Awesome Student, Awesome.Student@Colorado.edu
+ * @student    Donavon Facey, Dofa5688@Colorado.edu
  *
  
  */
@@ -40,9 +39,9 @@
 // to determine the correct values for these.
 // If these links have gone bad, consult the reference manual and/or the datasheet for the MCU.
 // Change to correct port and pins:
-#define LED_port   (0) 
-#define LED0_pin   (0)
-#define LED1_pin   (0)
+#define LED_port   (gpioPortF)
+#define LED0_pin   (4)
+#define LED1_pin   (5)
 
 
 
