@@ -58,6 +58,7 @@
 #include "src/ble_device_type.h"
 #include "src/gpio.h"
 #include "src/lcd.h"
+#include "src/timers.h"
 
 
 // Students: Here is an example of how to correctly include logging functions in
@@ -84,6 +85,17 @@
 // -----------------------------------------------------------------------------
 // defines for power manager callbacks
 // -----------------------------------------------------------------------------
+
+// Only define 1 of these to define the lowest energy mode
+// 0 = highest energy mode, 3 = lowest energy mode
+#define LOWEST_ENERGY_MODE 0
+
+#ifndef LOWEST_ENERGY_MODE
+#error "Define LOWEST_ENERGY_MODE"
+#elif (LOWEST_ENERGY_MODE & 0xFC)
+#error "Define a valid value of LOWEST_ENERGY_MODE"
+#endif
+
 // Return values for app_is_ok_to_sleep():
 //   Return false to keep sl_power_manager_sleep() from sleeping the MCU.
 //   Return true to allow system to sleep when you expect/want an IRQ to wake
@@ -93,9 +105,12 @@
 // Students: We'll need to modify this for A2 onward so that compile time we
 //           control what the lowest EM (energy mode) the MCU sleeps to. So
 //           think "#if (expression)".
-#define APP_IS_OK_TO_SLEEP      (false)
-//#define APP_IS_OK_TO_SLEEP      (true)
 
+#if LOWEST_ENERGY_MODE == 0
+#define APP_IS_OK_TO_SLEEP      (false)
+#else
+#define APP_IS_OK_TO_SLEEP      (true)
+#endif
 
 // Return values for app_sleep_on_isr_exit():
 //   SL_POWER_MANAGER_IGNORE; // The module did not trigger an ISR and it doesn't want to contribute to the decision
@@ -119,8 +134,6 @@
 //#define APP_SLEEP_ON_ISR_EXIT   (SL_POWER_MANAGER_WAKEUP)
 
 #endif // defined(SL_CATALOG_POWER_MANAGER_PRESENT)
-
-
 
 
 // *************************************************
@@ -159,6 +172,13 @@ SL_WEAK void app_init(void)
   // Don't call any Bluetooth API functions until after the boot event.
 
   gpioInit();
+  timerInit(LOWEST_ENERGY_MODE);
+
+#if LOWEST_ENERGY_MODE == 1
+  sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
+#elif LOWEST_ENERGY_MODE == 2
+  sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM2);
+#endif
 
 
 } // app_init()
@@ -172,7 +192,7 @@ SL_WEAK void app_init(void)
  * comment out this function. Wait loops are a bad idea in general.
  * We'll discuss how to do this a better way in the next assignment.
  *****************************************************************************/
-static void delayApprox(int delay)
+[[maybe_unused]] static void delayApprox(int delay)
 {
   volatile int i;
 
@@ -197,18 +217,7 @@ SL_WEAK void app_process_action(void)
   //         We will create/use a scheme that is far more energy efficient in
   //         later assignments.
 
-  delayApprox(3500000);
 
-  gpioLed0SetOn();
-
-  delayApprox(3500000);
-
-  gpioLed1SetOn();
-
-  delayApprox(3500000);
-
-  gpioLed0SetOff();
-  gpioLed1SetOff();
 
 } // app_process_action()
 

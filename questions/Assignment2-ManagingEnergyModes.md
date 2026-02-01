@@ -7,10 +7,10 @@ See [Mastering Markdown](https://guides.github.com/features/mastering-markdown/)
 
 Energy Mode | Period (ms) | LED On Time (ms) |Period average current (uA) | Average Current with LED off (uA) | Average Current with LED On (uA)
 ------------| ------------|------------------|----------------------------|-----------------------------------|---------------------------------
-EM0         |    TBD      |       TBD        |          TBD               |           TBD                     |         TBD
-EM1         |    TBD      |       TBD        |          TBD               |           TBD                     |         TBD
-EM2         |    TBD      |       TBD        |          TBD               |           TBD                     |         TBD
-EM3         |    TBD      |       TBD        |          TBD               |           TBD                     |         TBD
+EM0         |    2250     |       175.1      |          5450              |           5410                    |         5940
+EM1         |    2250     |       174.7      |          3950              |           3910                    |         4450
+EM2         |    2250     |       174.7      |          3310              |           3270                    |         3800
+EM3         |    2210     |       171.6      |          3310              |           3270                    |         3800
 
 
 
@@ -56,8 +56,8 @@ LED measurement - Period
 LED measurement - LED on time   
 ![em3_led_ledOnTime][em3_led_ledOnTime]  
 
-[em0_avg_current_period]: screenshots/em0_avg_current_period.jpg "em0_avg_current_period"
-[em0_avg_current_ledoff]: screenshots/em0_avg_current_ledoff.jpg "em0_avg_current_ledoff"
+[em0_avg_current_period]: screenshots/em0_avg_current_period.png "em0_avg_current_period"
+[em0_avg_current_ledoff]: screenshots/em0_avg_current_ledoff.png "em0_avg_current_ledoff"
 [em0_avg_current_ledon]: put-your-link-to-screenshot-image-here "em0_avg_current_ledon"
 
 [em1_avg_current_period]: put-your-link-to-screenshot-image-here "em1_avg_current_period"

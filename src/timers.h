@@ -1,0 +1,28 @@
+/*
+ * timers.h
+ *
+ *  Created on: Jan 28, 2026
+ *      Author: donav
+ */
+
+#ifndef SRC_TIMERS_H_
+#define SRC_TIMERS_H_
+
+#include "em_letimer.h"
+
+#include "oscillators.h"
+
+#define LETIMER_ON_TIME_MS 175
+#define LETIMER_PERIOD_MS 2250
+
+#if LETIMER_ON_TIME_MS > LETIMER_PERIOD_MS
+#error "On time must be less than period"
+#endif
+
+
+
+void timerInit(uint8_t LOWEST_ENERGY_MODE);
+
+
+
+#endif /* SRC_TIMERS_H_ */
