@@ -59,7 +59,8 @@
 #include "src/gpio.h"
 #include "src/lcd.h"
 #include "src/timers.h"
-
+#include "src/scheduler.h"
+#include "src/i2c.h"
 
 // Students: Here is an example of how to correctly include logging functions in
 //           each .c file.
@@ -88,7 +89,7 @@
 
 // Only define 1 of these to define the lowest energy mode
 // 0 = highest energy mode, 3 = lowest energy mode
-#define LOWEST_ENERGY_MODE 0
+#define LOWEST_ENERGY_MODE 3
 
 #ifndef LOWEST_ENERGY_MODE
 #error "Define LOWEST_ENERGY_MODE"
@@ -180,30 +181,9 @@ SL_WEAK void app_init(void)
   sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM2);
 #endif
 
+  i2cInit();
 
 } // app_init()
-
-
-
-
-/*****************************************************************************
- * delayApprox(), private to this file.
- * A value of 3500000 is ~ 1 second. After assignment 1 you can delete or
- * comment out this function. Wait loops are a bad idea in general.
- * We'll discuss how to do this a better way in the next assignment.
- *****************************************************************************/
-[[maybe_unused]] static void delayApprox(int delay)
-{
-  volatile int i;
-
-  for (i = 0; i < delay; ) {
-      i=i+1;
-  }
-
-} // delayApprox()
-
-
-
 
 
 /**************************************************************************//**
@@ -217,6 +197,11 @@ SL_WEAK void app_process_action(void)
   //         We will create/use a scheme that is far more energy efficient in
   //         later assignments.
 
+
+  if(Scheduler_Active_UF()){
+    Scheduler_Clear_UF();
+    i2cReadTemperature();
+  }
 
 
 } // app_process_action()

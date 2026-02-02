@@ -7,10 +7,30 @@
 
 #include "timers.h"
 
+static int32_t period_counts;
+static int32_t freq;
+
+static uint64_t Timer_getTime();
+
+static volatile uint64_t underflowCounter;
+void Timer_incrementUnderflowCounter(){
+  underflowCounter += period_counts;
+}
+
+static uint64_t Timer_getTime(){
+  uint64_t time;
+  CORE_ATOMIC_SECTION
+  (
+      time = underflowCounter + period_counts - LETIMER_CounterGet(LETIMER0);
+  )
+
+  return time;
+}
+
 void timerInit(uint8_t LOWEST_ENERGY_MODE){
   timer_clockInit(LOWEST_ENERGY_MODE);
 
-  uint32_t freq = CMU_ClockFreqGet(cmuClock_LETIMER0);
+  freq = CMU_ClockFreqGet(cmuClock_LETIMER0);
 
   /*
   if(LOWEST_ENERGY_MODE == 3){
@@ -20,7 +40,7 @@ void timerInit(uint8_t LOWEST_ENERGY_MODE){
   */
 
   //shifting left 10 bits to increase precision in division
-  uint32_t period_counts = LETIMER_PERIOD_MS * freq / 1000;
+  period_counts = LETIMER_PERIOD_MS * freq / 1000;
   uint32_t on_counts = LETIMER_ON_TIME_MS * freq / 1000;
 
   //route PWM out (Does not work for some reason)
@@ -44,7 +64,28 @@ void timerInit(uint8_t LOWEST_ENERGY_MODE){
   LETIMER_Init(LETIMER0, &LETIMER0_Init);
 
   //enable interrupt
-  LETIMER_IntEnable(LETIMER0, LETIMER_IF_UF | LETIMER_IF_COMP1);
+  LETIMER_IntEnable(LETIMER0, LETIMER_IF_UF);
   NVIC_EnableIRQ(LETIMER0_IRQn);
 }
 
+//The fundamental time unit is LETIMER0 timer ticks. At max frequency (~32kHz), the total counter still wouldn't overflow for ~17 million years. The 64 bit accesses are made atomic with a critical section.
+//The underflow increment operation is handled in the ISR handler to prevent race conditions involving the timer continuing to run without the underflow counted. This does allow for a practically infinite delay time.
+uint8_t timerWaitUs(uint32_t delay_usec){
+  uint64_t currentTime = Timer_getTime();
+
+  //Range Checking
+  //Any value of delay_usec is valid since the function does not have any valid range. As such, returning -1 (error) never happens.
+  if(delay_usec == 0){
+      return 1;
+  }
+
+  uint32_t delayTime = (((uint64_t)delay_usec * freq) / 1000000) + 1;
+  uint64_t targetTime = currentTime + delayTime;
+
+  uint64_t countTime = Timer_getTime();
+  while(countTime < targetTime){
+      countTime = Timer_getTime();
+  }
+
+  return 1;
+}

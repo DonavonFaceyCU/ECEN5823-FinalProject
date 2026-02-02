@@ -17,14 +17,12 @@ void LETIMER0_IRQHandler(){
   //Clear and handle Interrupt
   if(intflags & LETIMER_IF_COMP1){
       LETIMER_IntClear(LETIMER0, LETIMER_IF_COMP1);
-      gpioLed0SetOn();
-      //gpioLed1SetOff();
   }
 
   if(intflags & LETIMER_IF_UF){
       LETIMER_IntClear(LETIMER0, LETIMER_IF_UF);
-      gpioLed0SetOff();
-      //gpioLed1SetOn();
+      Timer_incrementUnderflowCounter();
+      Scheduler_Set_UF();
   }
 
 

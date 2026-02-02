@@ -13,5 +13,6 @@
 
 #include "gpio.h"
 #include "timers.h"
+#include "scheduler.h"
 
 #endif /* SRC_IRQ_H_ */

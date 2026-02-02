@@ -12,8 +12,8 @@
 
 #include "oscillators.h"
 
-#define LETIMER_ON_TIME_MS 175
-#define LETIMER_PERIOD_MS 2250
+#define LETIMER_ON_TIME_MS 800
+#define LETIMER_PERIOD_MS 3000
 
 #if LETIMER_ON_TIME_MS > LETIMER_PERIOD_MS
 #error "On time must be less than period"
@@ -22,7 +22,7 @@
 
 
 void timerInit(uint8_t LOWEST_ENERGY_MODE);
-
-
+void Timer_incrementUnderflowCounter();
+uint8_t timerWaitUs(uint32_t delay_usec);
 
 #endif /* SRC_TIMERS_H_ */
