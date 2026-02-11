@@ -17,5 +17,13 @@ uint32_t Scheduler_Active_UF();
 void Scheduler_Set_UF();
 void Scheduler_Clear_UF();
 
+uint32_t Scheduler_Active_COMP1();
+void Scheduler_Set_COMP1();
+void Scheduler_Clear_COMP1();
+
+uint32_t Scheduler_Active_TXC();
+void Scheduler_Set_TXC();
+void Scheduler_Clear_TXC();
+
 
 #endif /* SRC_SCHEDULER_H_ */

@@ -19,10 +19,6 @@
 #error "On time must be less than period"
 #endif
 
-
-
 void timerInit(uint8_t LowestEnergyMode);
-void Timer_incrementUnderflowCounter();
-uint8_t timerWaitUs(uint32_t delay_usec);
 
 #endif /* SRC_TIMERS_H_ */

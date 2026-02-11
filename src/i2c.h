@@ -12,8 +12,10 @@
 #include "em_cmu.h"
 
 #include "timers.h"
+#include "scheduler.h"
 
 void i2cInit();
-void i2cReadTemperature();
+void i2cReadTemperature_blocking();
+void i2cReadTemperature_nonblocking();
 
 #endif /* SRC_I2C_H_ */

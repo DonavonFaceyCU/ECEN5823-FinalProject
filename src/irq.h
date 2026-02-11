@@ -13,6 +13,14 @@
 
 #include "gpio.h"
 #include "timers.h"
+#include "i2c.h"
 #include "scheduler.h"
+
+void Time_Init(uint32_t timerCounts, uint32_t frequency);
+
+uint64_t Time_getTime();
+uint64_t letimerMilliseconds();
+uint8_t timerWaitUs(uint32_t delay_usec);
+uint8_t timerWaitUs_polled(uint32_t delay_usec);
 
 #endif /* SRC_IRQ_H_ */

@@ -157,6 +157,8 @@ SL_WEAK void app_init(void)
 
   i2cInit();
 
+  //LOG_INFO("Startup Complete");
+
 } // app_init()
 
 
@@ -172,10 +174,25 @@ SL_WEAK void app_process_action(void)
   //         later assignments.
 
 
-  if(Scheduler_Active_UF()){
-    Scheduler_Clear_UF();
-    i2cReadTemperature();
+  i2cReadTemperature_nonblocking();
+
+  /*
+  static bool temp;
+
+  if(Scheduler_Active_COMP1()){
+    Scheduler_Clear_COMP1();
+    temp = !temp;
+
+    if(temp){
+      gpioLed0SetOn();
+      timerWaitUs(10000);
+    } else {
+      gpioLed0SetOff();
+      timerWaitUs(20000);
+    }
   }
+  */
+
 
 
 } // app_process_action()

@@ -39,3 +39,13 @@ static void Scheduler_Clear(uint32_t mask){
 uint32_t Scheduler_Active_UF()  { return Scheduler_Active(EVENT_UF);  }
 void Scheduler_Set_UF()         { Scheduler_Set(EVENT_UF);            }
 void Scheduler_Clear_UF()       { Scheduler_Clear(EVENT_UF);          }
+
+#define EVENT_COMP1 (0x1 << 1)
+uint32_t Scheduler_Active_COMP1()  { return Scheduler_Active(EVENT_COMP1);  }
+void Scheduler_Set_COMP1()         { Scheduler_Set(EVENT_COMP1);            }
+void Scheduler_Clear_COMP1()       { Scheduler_Clear(EVENT_COMP1);          }
+
+#define EVENT_TXC (0x1 << 2)
+uint32_t Scheduler_Active_TXC()  { return Scheduler_Active(EVENT_TXC);  }
+void Scheduler_Set_TXC()         { Scheduler_Set(EVENT_TXC);            }
+void Scheduler_Clear_TXC()       { Scheduler_Clear(EVENT_TXC);          }
