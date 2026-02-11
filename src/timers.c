@@ -21,7 +21,7 @@ void timerInit(uint8_t LowestEnergyMode){
 
   //shifting left 10 bits to increase precision in division
   uint32_t period_counts = LETIMER_PERIOD_MS * freq / 1000;
-  uint32_t on_counts = LETIMER_ON_TIME_MS * freq / 1000;
+  //uint32_t on_counts = LETIMER_ON_TIME_MS * freq / 1000;
 
   //route PWM out (Does not work for some reason)
   //LETIMER0->ROUTELOC0 = LETIMER_ROUTELOC0_OUT0LOC_LOC28 | LETIMER_ROUTELOC0_OUT1LOC_LOC28;

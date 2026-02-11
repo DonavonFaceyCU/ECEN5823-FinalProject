@@ -11,6 +11,7 @@
 #include "em_letimer.h"
 
 #include "oscillators.h"
+#include "irq.h"
 
 #define LETIMER_ON_TIME_MS 800
 #define LETIMER_PERIOD_MS 3000
