@@ -6,17 +6,17 @@ See [Mastering Markdown](https://guides.github.com/features/mastering-markdown/)
 *Please include screenshots of the profiler window detailing each current measurement captured.  See the file: Instructions to add screenshots in assignment.docx in the ECEN 5823 Student Public Folder.* 
 
 1. What is the average current per period? (Remember, once you have measured your average current, average current is average current over all time. Average current doesn’t carry with it the units of the timespan over which it was measured).
-   Answer: 3.30mA
+   Answer: 1.44mA
    <br>Screenshot:  
    ![Avg_current_per_period](screenshots/Avg_current_per_period.png)  
    
 2. What is the ave current from the time we sleep the MCU to EM3 until we power-on the 7021 in response to the LETIMER0 UF IRQ? 
-   Answer: 3.27mA
+   Answer: 1.82uA
    <br>Screenshot:  
    ![Avg_current_lpmOFF](screenshots/Avg_current_lpmOFF.png)
    
 3. What is the ave current from the time we power-on the 7021 until the polled implementation of timerWaitUs() returns, indicating that the 7021's maximum time for conversion (measurement) has expired.
-   Answer: 5.31mA
+   Answer: 5.26mA
    <br>Screenshot:  
    ![Avg_current_lpmON](screenshots/Avg_current_lpmON.png)
    

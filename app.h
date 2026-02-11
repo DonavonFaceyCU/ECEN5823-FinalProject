@@ -48,6 +48,32 @@
 #ifndef APP_H
 #define APP_H
 
+// Only define 1 of these to define the lowest energy mode
+// 0 = highest energy mode, 3 = lowest energy mode
+#define LOWEST_ENERGY_MODE 3
+
+#ifndef LOWEST_ENERGY_MODE
+#error "Define LOWEST_ENERGY_MODE"
+#elif (LOWEST_ENERGY_MODE & 0xFC)
+#error "Define a valid value of LOWEST_ENERGY_MODE"
+#endif
+
+// Return values for app_is_ok_to_sleep():
+//   Return false to keep sl_power_manager_sleep() from sleeping the MCU.
+//   Return true to allow system to sleep when you expect/want an IRQ to wake
+//   up the MCU from the call to sl_power_manager_sleep() in the main while (1)
+//   loop.
+//
+// Students: We'll need to modify this for A2 onward so that compile time we
+//           control what the lowest EM (energy mode) the MCU sleeps to. So
+//           think "#if (expression)".
+
+#if LOWEST_ENERGY_MODE == 0
+#define APP_IS_OK_TO_SLEEP      (false)
+#else
+#define APP_IS_OK_TO_SLEEP      (true)
+#endif
+
 /**************************************************************************//**
  * Application Init.
  *****************************************************************************/

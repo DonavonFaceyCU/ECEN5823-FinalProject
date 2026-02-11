@@ -21,7 +21,7 @@
 
 
 
-void timerInit(uint8_t LOWEST_ENERGY_MODE);
+void timerInit(uint8_t LowestEnergyMode);
 void Timer_incrementUnderflowCounter();
 uint8_t timerWaitUs(uint32_t delay_usec);
 

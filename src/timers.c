@@ -27,8 +27,8 @@ static uint64_t Timer_getTime(){
   return time;
 }
 
-void timerInit(uint8_t LOWEST_ENERGY_MODE){
-  timer_clockInit(LOWEST_ENERGY_MODE);
+void timerInit(uint8_t LowestEnergyMode){
+  timer_clockInit(LowestEnergyMode);
 
   freq = CMU_ClockFreqGet(cmuClock_LETIMER0);
 
