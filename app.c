@@ -174,7 +174,7 @@ SL_WEAK void app_process_action(void)
   //         later assignments.
 
 
-  i2cReadTemperature_nonblocking();
+  i2c_stateMachine();
 
   /*
   static bool temp;
