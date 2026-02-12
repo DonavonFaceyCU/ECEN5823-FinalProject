@@ -12,6 +12,8 @@
 
 #include "em_core.h"
 
+#include "i2c.h"
+
 //Functions related to LETIMER0 UF Event
 uint32_t Scheduler_Active_UF();
 void Scheduler_Set_UF();
@@ -25,5 +27,6 @@ uint32_t Scheduler_Active_TXC();
 void Scheduler_Set_TXC();
 void Scheduler_Clear_TXC();
 
+void i2c_stateMachine();
 
 #endif /* SRC_SCHEDULER_H_ */

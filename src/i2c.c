@@ -21,9 +21,6 @@
 
 #define SI7021_ADDR   0x40
 
-static void i2cEnableSensor();
-static void i2cDisableSensor();
-
 void i2cInit(){
   CMU_ClockEnable(cmuClock_I2C0, true);
 
@@ -50,7 +47,7 @@ void i2cInit(){
   I2C_IntEnable(I2C0, I2C_IEN_TXC);
 }
 
-static void i2cEnableSensor(){
+void i2cEnableSensor(){
   //power on sensor enable
   GPIO_PinOutSet(SENSOR_ENABLE_PORT, SENSOR_ENABLE_PIN);
 
@@ -59,7 +56,7 @@ static void i2cEnableSensor(){
   GPIO_PinModeSet(I2C0_SDA_PORT, I2C0_SDA_PIN, gpioModeWiredAndPullUp, 1);
 }
 
-static void i2cDisableSensor(){
+void i2cDisableSensor(){
   //disable GPIO pins
   GPIO_PinModeSet(I2C0_SCL_PORT, I2C0_SCL_PIN, gpioModeDisabled, 1);
   GPIO_PinModeSet(I2C0_SDA_PORT, I2C0_SDA_PIN, gpioModeDisabled, 1);
@@ -114,64 +111,20 @@ void i2cReadTemperature_blocking(){
   LOG_INFO("Logged Measurement: %.0f Degrees Celsius", temperature);
 }
 
-typedef enum i2c_transfer_state_t {
-  S0_IDLE = 0,
-  S1_STARTUP,
-  S2_MEASUREMENT,
-  I2C_TRANSFER_NUM_STATES
-} i2c_transfer_state_t;
-
-void i2cReadTemperature_nonblocking(){
-  static i2c_transfer_state_t current_state;
-
-  i2c_transfer_state_t next_state = current_state;
-
-  switch(current_state){
-    case S0_IDLE:
-      //if UF event is triggered, turn on sensor, wait 80ms
-      if(Scheduler_Active_UF()){
-        Scheduler_Clear_UF();
-        next_state = S1_STARTUP;
-
-        i2cEnableSensor();
-        timerWaitUs(82000);
-      }
-      break;
-    case S1_STARTUP:
-      //if COMP1 is triggered after 80ms, command a temperature reading to happen. Sleep until clock stretched transaction is done
-      if(Scheduler_Active_COMP1()){
-        Scheduler_Clear_COMP1();
-        next_state = S2_MEASUREMENT;
-
-        sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
-        I2C_TransferReturn_TypeDef transferStatus;
-        transferStatus = I2C_TransferInit (I2C0, &TransferSequence);
-        if (transferStatus < 0) {
-          LOG_ERROR("I2C_TransferInit() Write error = %d", transferStatus);
-        }
-        NVIC_EnableIRQ(I2C0_IRQn);
-      }
-      break;
-    case S2_MEASUREMENT:
-      //if I2C_TransferComplete is triggered after 10.8ms, read the temperature. Then shut down sensor.
-      if(Scheduler_Active_TXC()){
-        Scheduler_Clear_TXC();
-        next_state = S0_IDLE;
-
-        NVIC_DisableIRQ(I2C0_IRQn);
-        uint16_t temp_code = receiveBuffer[1] | (receiveBuffer[0] << 8);
-        float temperature = 175.72f * temp_code / 65536 - 46.85;
-        LOG_INFO("Logged Measurement: %.0f Degrees Celsius", temperature);
-        receiveBuffer[1] = 0xAB;
-        receiveBuffer[0] = 0xCD;
-        i2cDisableSensor();
-        sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
-      }
-      break;
-    default:
-      next_state = S0_IDLE;
-      break;
+void i2cReadTemperature_nonblocking_start(){
+  sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
+  I2C_TransferReturn_TypeDef transferStatus;
+  transferStatus = I2C_TransferInit (I2C0, &TransferSequence);
+  if (transferStatus < 0) {
+    LOG_ERROR("I2C_TransferInit() Write error = %d", transferStatus);
   }
+}
 
-  current_state = next_state;
+void i2cReadTemperature_nonblocking_finish(){
+  uint16_t temp_code = receiveBuffer[1] | (receiveBuffer[0] << 8);
+  float temperature = 175.72f * temp_code / 65536 - 46.85;
+  LOG_INFO("Logged Measurement: %.0f Degrees Celsius", temperature);
+  //receiveBuffer[1] = 0xAB;
+  //receiveBuffer[0] = 0xCD;
+  sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
 }

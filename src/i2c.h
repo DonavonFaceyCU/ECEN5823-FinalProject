@@ -16,6 +16,11 @@
 
 void i2cInit();
 void i2cReadTemperature_blocking();
-void i2cReadTemperature_nonblocking();
+
+void i2cReadTemperature_nonblocking_start();
+void i2cReadTemperature_nonblocking_finish();
+
+void i2cEnableSensor();
+void i2cDisableSensor();
 
 #endif /* SRC_I2C_H_ */
