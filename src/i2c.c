@@ -46,6 +46,8 @@ void i2cInit(){
   I2CSPM_Init(&I2C0_Init);
 
   I2C_IntEnable(I2C0, I2C_IEN_TXC);
+
+  i2cDisableSensor();
 }
 
 void i2cEnableSensor(){

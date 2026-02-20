@@ -31,7 +31,7 @@ void i2c_stateMachine(sl_bt_msg_t *evt){
     switch(current_state){
       case S0_IDLE:
         //if UF event is triggered, turn on sensor, wait 82ms
-        if(Scheduler_Active_UF(evt)){
+        if(Scheduler_Active_UF(evt) && connection_established() && indication_allowed()){
           next_state = S1_STARTUP;
 
           i2cEnableSensor();
