@@ -13,7 +13,7 @@
 #include "oscillators.h"
 #include "irq.h"
 
-#define LETIMER_ON_TIME_MS 800
+#define LETIMER_ON_TIME_MS 0
 #define LETIMER_PERIOD_MS 3000
 
 #if LETIMER_ON_TIME_MS > LETIMER_PERIOD_MS

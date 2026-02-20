@@ -20,6 +20,7 @@
 #define SENSOR_ENABLE_PIN  15
 
 #define SI7021_ADDR   0x40
+#define SI7021_NO_HOLD_TEMP_READ 0xE0
 
 void i2cInit(){
   CMU_ClockEnable(cmuClock_I2C0, true);
@@ -65,15 +66,15 @@ void i2cDisableSensor(){
   GPIO_PinOutClear(SENSOR_ENABLE_PORT, SENSOR_ENABLE_PIN);
 }
 
-#define RECEIVE_LENGTH 2
-#define TRANSMIT_LENGTH 1
-static uint8_t receiveBuffer[RECEIVE_LENGTH] = {0,0};
-static uint8_t transmitBuffer[TRANSMIT_LENGTH] = {0xE3}; //Hold Master Mode Read Temperature Command
-I2C_TransferSeq_TypeDef TransferSequence = {
+#define BLOCKING_RECEIVE_LENGTH 2
+#define BLOCKING_TRANSMIT_LENGTH 1
+static uint8_t blockingReceiveBuffer[BLOCKING_RECEIVE_LENGTH] = {0,0};
+static uint8_t blockingTransmitBuffer[BLOCKING_TRANSMIT_LENGTH] = {0xE3}; //Hold Master Mode Read Temperature Command
+I2C_TransferSeq_TypeDef BlockingTransferSequence = {
     .addr = SI7021_ADDR << 1,
-    .flags = I2C_FLAG_WRITE_READ,
-    .buf[0] = {.data = transmitBuffer, .len = TRANSMIT_LENGTH},
-    .buf[1] = {.data = receiveBuffer, .len = RECEIVE_LENGTH}
+    .flags = I2C_FLAG_WRITE,
+    .buf[0] = {.data = blockingTransmitBuffer, .len = BLOCKING_TRANSMIT_LENGTH},
+    .buf[1] = {.data = blockingReceiveBuffer, .len = BLOCKING_RECEIVE_LENGTH}
 };
 
 void i2cReadTemperature_blocking(){
@@ -88,7 +89,7 @@ void i2cReadTemperature_blocking(){
   timerWaitUs_polled(80000);
 
   //send temperature command
-  uint8_t transferReturn = I2CSPM_Transfer(I2C0, &TransferSequence);
+  uint8_t transferReturn = I2CSPM_Transfer(I2C0, &BlockingTransferSequence);
   if(transferReturn != i2cTransferDone){
       LOG_ERROR("I2C Transfer Failed with code:%u", transferReturn);
   }
@@ -106,25 +107,55 @@ void i2cReadTemperature_blocking(){
   //turn off sensor enable
   GPIO_PinOutClear(SENSOR_ENABLE_PORT, SENSOR_ENABLE_PIN);
 
-  uint16_t temp_code = receiveBuffer[1] | (receiveBuffer[0] << 8);
-  float temperature = 175.72f * temp_code / 65536 - 46.85;
+  uint16_t temp_code = blockingReceiveBuffer[1] | (blockingReceiveBuffer[0] << 8);
+  float temperature = 175.72f * (temp_code >> 16) - 46.85;
   LOG_INFO("Logged Measurement: %.0f Degrees Celsius", temperature);
 }
 
-void i2cReadTemperature_nonblocking_start(){
+#define COMMAND_TRANSMIT_LENGTH 1
+static uint8_t commandTransmitBuffer[BLOCKING_TRANSMIT_LENGTH] = {0xF3}; //No Hold Master Mode Read Temperature Command
+I2C_TransferSeq_TypeDef CommandTransferSequence = {
+    .addr = SI7021_ADDR << 1,
+    .flags = I2C_FLAG_WRITE,
+    .buf[0] = {.data = commandTransmitBuffer, .len = COMMAND_TRANSMIT_LENGTH},
+};
+
+void i2cCommandTemperatureReading(){
   sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
   I2C_TransferReturn_TypeDef transferStatus;
-  transferStatus = I2C_TransferInit (I2C0, &TransferSequence);
+  transferStatus = I2C_TransferInit (I2C0, &CommandTransferSequence);
   if (transferStatus < 0) {
     LOG_ERROR("I2C_TransferInit() Write error = %d", transferStatus);
   }
 }
 
-void i2cReadTemperature_nonblocking_finish(){
-  uint16_t temp_code = receiveBuffer[1] | (receiveBuffer[0] << 8);
-  float temperature = 175.72f * temp_code / 65536 - 46.85;
-  LOG_INFO("Logged Measurement: %.0f Degrees Celsius", temperature);
-  //receiveBuffer[1] = 0xAB;
-  //receiveBuffer[0] = 0xCD;
-  sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
+#define READING_RECEIVE_LENGTH 2
+static uint8_t readingReceiveBuffer[READING_RECEIVE_LENGTH] = {0xAB, 0xCD}; //No Hold Master Mode Read Temperature Command
+I2C_TransferSeq_TypeDef ReadingTransferSequence = {
+    .addr = SI7021_ADDR << 1,
+    .flags = I2C_FLAG_READ,
+    .buf[0] = {.data = readingReceiveBuffer, .len = READING_RECEIVE_LENGTH},
+};
+
+void i2cReadTemperature_nonblocking_start(){
+  I2C_TransferReturn_TypeDef transferStatus;
+  transferStatus = I2C_TransferInit (I2C0, &ReadingTransferSequence);
+  if (transferStatus < 0) {
+    LOG_ERROR("I2C_TransferInit() Read error = %d", transferStatus);
+  }
 }
+
+uint32_t i2cReadTemperature_nonblocking_finish(){
+  uint16_t temp_code = readingReceiveBuffer[1] | (readingReceiveBuffer[0] << 8);
+  //uint32_t temperature = 175720 * temp_code / 65536 - 46850;
+  //uint32_t temperature_11073 = ((uint32_t)(uint8_t)(-3) << 24) | ((temperature & 0x00FFFFFF) << 0);
+
+  uint32_t temperature = 1760 * temp_code / 65536 - 470;
+  uint32_t temperature_11073 = ((uint32_t)(uint8_t)(-1) << 24) | ((temperature & 0x00FFFFFF) << 0);
+  //LOG_INFO("Logged Measurement: %u Degrees Celsius", temperature);
+
+  sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
+  return temperature_11073;
+}
+
+

@@ -8,6 +8,9 @@
 #ifndef SRC_BLE_H_
 #define SRC_BLE_H_
 
+#include "sl_bluetooth.h"
+#include "gatt_db.h"
+
 #define UINT8_TO_BITSTREAM(p, n) { *(p)++ = (uint8_t)(n); }
 
 #define UINT32_TO_BITSTREAM(p, n) { *(p)++ = (uint8_t)(n); *(p)++ = (uint8_t)((n) >> 8); \
@@ -21,14 +24,19 @@
 typedef struct {
  // values that are common to servers and clients
  bd_addr myAddress;
- …
  // values unique for server
  // The advertising set handle allocated from Bluetooth stack.
  uint8_t advertisingSetHandle;
- …
  // values unique for client
 } ble_data_struct_t;
 
 ble_data_struct_t* get_ble_data();
+
+void handle_ble_event(sl_bt_msg_t *evt);
+
+void send_temperature_reading(size_t value_len, const uint8_t* value);
+
+bool indication_allowed();
+bool connection_established();
 
 #endif /* SRC_BLE_H_ */

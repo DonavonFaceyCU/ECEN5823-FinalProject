@@ -12,7 +12,10 @@
 
 #include "em_core.h"
 
+#include "gatt_db.h"
+
 #include "i2c.h"
+#include "ble.h"
 
 //Functions related to LETIMER0 UF Event
 uint32_t Scheduler_Active_UF();
@@ -27,6 +30,6 @@ uint32_t Scheduler_Active_TXC();
 void Scheduler_Set_TXC();
 void Scheduler_Clear_TXC();
 
-void i2c_stateMachine();
+void i2c_stateMachine(sl_bt_msg_t *evt);
 
 #endif /* SRC_SCHEDULER_H_ */

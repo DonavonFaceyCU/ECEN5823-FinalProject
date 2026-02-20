@@ -61,6 +61,7 @@
 #include "src/timers.h"
 #include "src/scheduler.h"
 #include "src/i2c.h"
+#include "src/ble.h"
 
 // Students: Here is an example of how to correctly include logging functions in
 //           each .c file.
@@ -224,7 +225,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
   handle_ble_event(evt); // put this code in ble.c/.h
 
   // sequence through states driven by events
-  state_machine(evt);    // put this code in scheduler.c/.h
+  i2c_stateMachine(evt);    // put this code in scheduler.c/.h
 
 
 } // sl_bt_on_event()

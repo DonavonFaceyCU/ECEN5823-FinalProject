@@ -1,6 +1,6 @@
 # Silicon Labs Project Configuration Tools: slcp, v0, Component selection file.
-project_name: ecen5823-assignment4-DonavonFaceyCU
-label: ecen5823-assignment4-DonavonFaceyCU
+project_name: ecen5823-assignment5-DonavonFaceyCU
+label: ecen5823-assignment5-DonavonFaceyCU
 description: |
   A minimal project structure, that serves as a starting point for custom Bluetooth applications. It contains a minimal GATT database that can be expanded to fit your application requirements. The application starts advertising after boot and restarts advertising after a connection is closed. It also supports Over-the-Air Device Firmware Upgrade (OTA DFU).
 category: Bluetooth Examples
@@ -27,6 +27,7 @@ component:
 - {id: bluetooth_feature_connection}
 - {id: bluetooth_feature_gatt}
 - {id: bluetooth_feature_gatt_server}
+- {id: bluetooth_feature_legacy_advertiser}
 - {id: bluetooth_feature_scanner}
 - {id: bluetooth_feature_sm}
 - {id: bluetooth_feature_system}

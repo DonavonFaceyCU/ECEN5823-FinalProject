@@ -10,25 +10,27 @@ See [Mastering Markdown](https://guides.github.com/features/mastering-markdown/)
    ![advertising_period](screenshots/assignment5/advertising_period.png)  
 
 2. What is the average current between advertisements - i.e. when the MCU is sleeping in EM2. (Don't measure an interval with a LETIMER UF event)?
-   Answer:
+   Answer: 2.45uA
    <br>Screenshot:  
    ![avg_current_between_advertisements](screenshots/assignment5/avg_current_between_advertisements.png)  
 
 3. What is the peak current of an advertisement? 
-   Answer:
+   Answer: 28.66mA
    <br>Screenshot:  
    ![peak_current_of_advertisement](screenshots/assignment5/peak_current_of_advertisement.png)  
 
 4. Provide screen shot showing the connection interval setting. Does the connection interval match the values you requested in your slave(server) code, or the master's(client) values?.
+   Answer: 90ms, when 75ms is requested. Logging reports 90ms from central, meaning it matches the central value. 75ms can be achieved by requesting 60ms. The health thermometer demo seems to negotiate up by 20%.
    <br>Screenshot: 
    ![connection_interval](screenshots/assignment5/connection_interval.png)  
 
 5. What is the average current between connection intervals - i.e. when the MCU is sleeping in EM2. (Don't measure an interval with a LETIMER UF event)?
-   Answer:
+   Answer: 1.45uA
    <br>Screenshot:  
    ![avg_current_between_connection_intervals](screenshots/assignment5/avg_current_between_connection_intervals.png)  
 
 6. If possible, provide screen shot verifying the slave latency matches what was reported when you logged the values from event = gecko_evt_le_connection_parameters_id. 
+   Note: With the interval above, slave latency of 3 means possibly 4 intervals between each connection interval = 360ms, matching the screenshot.
    <br>Screenshot:  
    ![slave_latency](screenshots/assignment5/slave_latency.png)  
 
