@@ -50,7 +50,7 @@
 
 /*
  * Student edit: Add your name and email address here:
- * @student    Awesome Student, Awesome.Student@Colorado.edu
+ * @student    Donavon Facey, Dofa5688@Colorado.edu
 */
 
 
@@ -73,7 +73,9 @@
 #define INCLUDE_LOG_DEBUG 1
 #include "log.h"
 
-
+#define SOFT_TIMER_PERIOD   (32768)
+#define SOFT_TIMER_SLACK    (20)
+#define SOFT_TIMER_HANDLE   (0xD3)
 
 
 
@@ -248,17 +250,7 @@ void displayInit()
     memset(display,0,sizeof(struct display_data));
     display->last_extcomin_state_high = false;
 
-
-    // Edit #1
-    // Students: If you created a function for A3, A4 and A5 that turns power on and
-    //           off to the Si7021, call the "On" function here. If not create the function
-    //           gpioSensorEnSetOn() to set SENSOR_ENABLE=1, see main board schematic,
-    //           SENSOR_ENABLE=1 is tied to DISP_ENABLE. We need this on all the
-    //           the time now for the LCD to function properly.
-    //           Create that function in gpio.c/.h Then add that function call here.
-    //
-    //gpioSensorEnSetOn(); // we need SENSOR_ENABLE=1 which is tied to DISP_ENABLE
-    //                     // for the LCD, on all the time now
+    i2cEnableSensor();
 
 
 
@@ -315,11 +307,11 @@ void displayInit()
     // Students: Figure out what parameters to pass in to sl_bt_system_set_soft_timer() to
     //           set up a 1 second repeating soft timer and uncomment the following lines
 
-	  //sl_status_t          timer_response;
-	  //timer_response = sl_bt_system_set_soft_timer();
-	  //if (timer_response != SL_STATUS_OK) {
-	  //    LOG_...
-    // }
+	  sl_status_t          timer_response;
+	  timer_response = sl_bt_system_set_lazy_soft_timer(SOFT_TIMER_PERIOD, SOFT_TIMER_SLACK, SOFT_TIMER_HANDLE, false);
+	  if (timer_response != SL_STATUS_OK) {
+	      LOG_ERROR("SOFT_TIMER_INIT");
+    }
 
 
 
@@ -340,12 +332,7 @@ void displayUpdate()
 	// toggle the var that remembers the state of EXTCOMIN pin
 	display->last_extcomin_state_high = !display->last_extcomin_state_high;
 
-	// Edit #2
-  // Students: Create the function gpioSetDisplayExtcomin() that will set
-	//           the EXTCOMIN input to the LCD. Add that function to gpio.c./.h
-	//           Then uncomment the following line.
-	//
-	//gpioSetDisplayExtcomin(display->last_extcomin_state_high);
+	gpioSetDisplayExtcomin(display->last_extcomin_state_high);
 	
 } // displayUpdate()
 

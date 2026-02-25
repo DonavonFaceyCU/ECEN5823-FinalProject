@@ -57,7 +57,7 @@ void handle_ble_event(sl_bt_msg_t *evt){
   sl_status_t sc;
   bd_addr address;
   uint8_t address_type;
-
+  //TODO: Figure out why it thinks indications are enabled by default
   switch (SL_BT_MSG_ID(evt->header)) {
     case sl_bt_evt_system_boot_id:
 
@@ -85,6 +85,28 @@ void handle_ble_event(sl_bt_msg_t *evt){
           LOG_ERROR("BT STACK BOOTUP");
       }
 
+      displayInit();
+
+      displayPrintf(DISPLAY_ROW_ASSIGNMENT, "A6");
+
+#if DEVICE_IS_BLE_SERVER
+      displayPrintf(DISPLAY_ROW_NAME, "Server");
+      displayPrintf(DISPLAY_ROW_CONNECTION, "Advertising");
+#else
+      displayPrintf(DISPLAY_ROW_NAME, "Client");
+#endif
+      bd_addr address;
+      sc = sl_bt_system_get_identity_address(&address, sl_bt_gap_public_address);
+      if(sc != SL_STATUS_OK){
+          LOG_ERROR("ADDRESS GET");
+      }
+      displayPrintf(DISPLAY_ROW_BTADDR, "%x:%x:%x:%x:%x:%x",
+                    address.addr[0],
+                    address.addr[1],
+                    address.addr[2],
+                    address.addr[3],
+                    address.addr[4],
+                    address.addr[5]);
       break;
 
     case sl_bt_evt_connection_opened_id:
@@ -102,6 +124,7 @@ void handle_ble_event(sl_bt_msg_t *evt){
           LOG_ERROR("BT STACK CONNECTION OPENED");
       }
 
+      displayPrintf(DISPLAY_ROW_CONNECTION, "Connected");
       connected = true;
       break;
 
@@ -112,7 +135,10 @@ void handle_ble_event(sl_bt_msg_t *evt){
           LOG_ERROR("BT STACK CONNECTION CLOSED");
       }
 
+      displayPrintf(DISPLAY_ROW_CONNECTION, "Advertising");
+      displayPrintf(DISPLAY_ROW_TEMPVALUE, "");
       connected = false;
+      indication_enabled = false;
       break;
 
     case sl_bt_evt_connection_parameters_id:
@@ -135,10 +161,18 @@ void handle_ble_event(sl_bt_msg_t *evt){
           //TODO Handle Indication Enable tracking
           uint16_t client_config_flags = evt->data.evt_gatt_server_characteristic_status.client_config_flags;
 
-               if(client_config_flags == sl_bt_gatt_server_disable)                      {indication_enabled = false;}
-          else if(client_config_flags == sl_bt_gatt_server_indication)                   {indication_enabled = true;}
-          else if(client_config_flags == sl_bt_gatt_server_notification)                 {indication_enabled = false;}
-          else if(client_config_flags == sl_bt_gatt_server_notification_and_indication)  {indication_enabled = true;}
+               if(client_config_flags == sl_bt_gatt_server_disable)                           {indication_enabled = false;}
+               else if(client_config_flags == sl_bt_gatt_server_indication)                   {indication_enabled = true;}
+               else if(client_config_flags == sl_bt_gatt_server_notification)                 {indication_enabled = false;}
+               else if(client_config_flags == sl_bt_gatt_server_notification_and_indication)  {indication_enabled = true;}
+
+               if(indication_enabled){
+                   //TODO: Decide if needed
+                   //sl_status_t sc = sl_bt_gatt_server_read_attribute_value(gattdb_temperature_measurement, 0, value_len, value);
+                   //Nothing. Let state machine update the value once it samples
+               } else {
+                   displayPrintf(DISPLAY_ROW_TEMPVALUE, "");
+               }
 
       //confirmation received
       } else if (evt->data.evt_gatt_server_characteristic_status.status_flags == sl_bt_gatt_server_confirmation) {
@@ -149,6 +183,10 @@ void handle_ble_event(sl_bt_msg_t *evt){
     case sl_bt_evt_gatt_server_indication_timeout_id:
       indication_inflight = false;
       //LOG_ERROR("Indication Timed Out");
+      break;
+
+    case sl_bt_evt_system_soft_timer_id:
+      displayUpdate();
       break;
 
     default: //do nothing
@@ -165,6 +203,8 @@ void send_temperature_reading(size_t value_len, const uint8_t* value){
   if(sc != SL_STATUS_OK){
       LOG_ERROR("BT STACK INDICATION SEND");
   }
+
+  displayPrintf(DISPLAY_ROW_TEMPVALUE, "TODO: TEMPERATURE");
 }
 
 void update_temperature_reading(size_t value_len, const uint8_t* value){

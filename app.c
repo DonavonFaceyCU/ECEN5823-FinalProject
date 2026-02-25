@@ -225,8 +225,15 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
   handle_ble_event(evt); // put this code in ble.c/.h
 
   // sequence through states driven by events
-  i2c_stateMachine(evt);    // put this code in scheduler.c/.h
+#if DEVICE_IS_BLE_SERVER
 
 
+  temperature_stateMachine(evt);        // put this code in scheduler.c/.h
+
+#else
+
+  discovery_stateMachine(evt);     // put this code in scheduler.c/.h
+
+#endif
 } // sl_bt_on_event()
 

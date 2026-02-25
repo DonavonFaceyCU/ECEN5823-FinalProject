@@ -14,6 +14,7 @@
 
 #include "timers.h"
 #include "scheduler.h"
+#include "lcd.h"
 
 void i2cInit();
 void i2cReadTemperature_blocking();

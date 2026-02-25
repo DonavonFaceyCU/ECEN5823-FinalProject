@@ -28,7 +28,7 @@
 #ifndef SRC_GPIO_H_
 #define SRC_GPIO_H_
 
-
+#include "em_gpio.h"
 
 
 // Function prototypes
@@ -38,7 +38,7 @@ void gpioLed0SetOff();
 void gpioLed1SetOn();
 void gpioLed1SetOff();
 
-
+void gpioSetDisplayExtcomin(bool state);
 
 
 

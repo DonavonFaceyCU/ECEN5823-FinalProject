@@ -18,7 +18,13 @@ typedef enum i2c_transfer_state_t {
   I2C_TRANSFER_NUM_STATES
 } i2c_transfer_state_t;
 
-void i2c_stateMachine(sl_bt_msg_t *evt){
+void discovery_stateMachine(sl_bt_msg_t *evt){
+  //TODO A7
+
+  (void) evt;
+}
+
+void temperature_stateMachine(sl_bt_msg_t *evt){
   static i2c_transfer_state_t current_state;
 
   //ignore all events aside from external signals
@@ -86,7 +92,7 @@ void i2c_stateMachine(sl_bt_msg_t *evt){
               send_temperature_reading(5, htmTempBuffer);
           }
 
-          i2cDisableSensor();
+          //i2cDisableSensor();
         }
         break;
       default:

@@ -37,7 +37,7 @@
 #ifndef SRC_LCD_H_
 #define SRC_LCD_H_
 
-
+#include "i2c.h"
 
 /**
  * Display row definitions, used for writing specific content based on

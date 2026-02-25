@@ -26,7 +26,7 @@
 // *****************************************************************************
 
 #include <stdbool.h>
-#include "em_gpio.h"
+
 #include <string.h>
 
 #include "gpio.h"
@@ -43,7 +43,8 @@
 #define LED0_pin   (4)
 #define LED1_pin   (5)
 
-
+#define DISPLAY_EXTCOMIN_port (gpioPortD)
+#define DISPLAY_EXTCOMIN_pin  (13)
 
 // Set GPIO drive strengths and modes of operation
 void gpioInit()
@@ -86,7 +87,14 @@ void gpioLed1SetOff()
 	GPIO_PinOutClear(LED_port, LED1_pin);
 }
 
+void gpioSetDisplayExtcomin(bool state){
+  if(state){
+      GPIO_PinOutSet(DISPLAY_EXTCOMIN_port, DISPLAY_EXTCOMIN_pin);
+  } else {
+      GPIO_PinOutClear(DISPLAY_EXTCOMIN_port, DISPLAY_EXTCOMIN_pin);
+  }
 
+}
 
 
 

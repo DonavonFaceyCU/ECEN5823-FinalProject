@@ -10,6 +10,7 @@
 
 #include "sl_bluetooth.h"
 #include "gatt_db.h"
+#include "ble_device_type.h"
 
 #define UINT8_TO_BITSTREAM(p, n) { *(p)++ = (uint8_t)(n); }
 
