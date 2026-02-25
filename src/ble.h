@@ -34,6 +34,7 @@ ble_data_struct_t* get_ble_data();
 
 void handle_ble_event(sl_bt_msg_t *evt);
 
+void update_temperature_reading(size_t value_len, const uint8_t* value);
 void send_temperature_reading(size_t value_len, const uint8_t* value);
 
 bool indication_allowed();

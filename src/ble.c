@@ -80,6 +80,11 @@ void handle_ble_event(sl_bt_msg_t *evt){
 
       // Start advertising and enable connections.
       sc = sl_bt_legacy_advertiser_start(advertising_set_handle, sl_bt_advertiser_connectable_scannable);
+
+      if(sc != SL_STATUS_OK){
+          LOG_ERROR("BT STACK BOOTUP");
+      }
+
       break;
 
     case sl_bt_evt_connection_opened_id:
@@ -92,11 +97,21 @@ void handle_ble_event(sl_bt_msg_t *evt){
                                       CONNECTION_SUPERVISION_TIMEOUT,
                                       CONNECTION_EVENT_LENGTH_MIN,
                                       CONNECTION_EVENT_LENGTH_MAX);
+
+      if(sc != SL_STATUS_OK){
+          LOG_ERROR("BT STACK CONNECTION OPENED");
+      }
+
       connected = true;
       break;
 
     case sl_bt_evt_connection_closed_id:
       sc = sl_bt_legacy_advertiser_start(advertising_set_handle, sl_bt_advertiser_connectable_scannable);
+
+      if(sc != SL_STATUS_OK){
+          LOG_ERROR("BT STACK CONNECTION CLOSED");
+      }
+
       connected = false;
       break;
 
@@ -145,5 +160,17 @@ void handle_ble_event(sl_bt_msg_t *evt){
 
 void send_temperature_reading(size_t value_len, const uint8_t* value){
   indication_inflight = true;
-  sl_bt_gatt_server_send_indication(connection_handle, gattdb_temperature_measurement, value_len, value);
+  sl_status_t sc = sl_bt_gatt_server_send_indication(connection_handle, gattdb_temperature_measurement, value_len, value);
+
+  if(sc != SL_STATUS_OK){
+      LOG_ERROR("BT STACK INDICATION SEND");
+  }
+}
+
+void update_temperature_reading(size_t value_len, const uint8_t* value){
+  sl_status_t sc = sl_bt_gatt_server_write_attribute_value(gattdb_temperature_measurement, 0, value_len, value);
+
+  if(sc != SL_STATUS_OK){
+      LOG_ERROR("BT STACK GATTDB UPDATE");
+  }
 }

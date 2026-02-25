@@ -75,13 +75,13 @@ void i2c_stateMachine(sl_bt_msg_t *evt){
 
           uint8_t htmTempBuffer[5];
 
-
           uint8_t *p = htmTempBuffer;
 
           uint8_t flags = 0x00;
           UINT8_TO_BITSTREAM(p, flags);
           UINT32_TO_BITSTREAM(p, temp_11073);
 
+          update_temperature_reading(5, htmTempBuffer);
           if(indication_allowed()){
               send_temperature_reading(5, htmTempBuffer);
           }
