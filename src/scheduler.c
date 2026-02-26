@@ -13,14 +13,56 @@ typedef enum discovery_state_t {
   S0_STARTUP = 0,
   S1_DISCOVERING,
   S2_CONNECTING,
-  S3_CONNECTED,
-  S4_SERVICES_LOGGED,
-  S5_CHARACTERISTICS_LOGGED,
+  S3_CHECK_SERVICES,
+  S4_CHECK_CHARACTERISTICS,
+  S5_RX_INDICATIONS,
   I2C_TRANSFER_NUM_STATES
-} i2c_transfer_state_t;
+} discovery_state_t;
 
 void discovery_stateMachine(sl_bt_msg_t *evt){
-  //TODO A7
+  static discovery_state_t current_state;
+  discovery_state_t next_state = current_state;
+
+  uint8_t event = SL_BT_MSG_ID(evt->header);
+
+  if(event == sl_bt_evt_connection_closed_id){
+      current_state = S1_DISCOVERING;
+      return;
+  }
+
+  switch(current_state){
+    case S0_STARTUP:
+      if(event == sl_bt_evt_system_boot_id){
+          next_state = S1_DISCOVERING;
+      }
+      break;
+    case S1_DISCOVERING:
+      //TODO
+      //if scanner_scan_report_id matches our server, move state
+      //call open command
+      break;
+    case S2_CONNECTING:
+      //TODO
+      //if connection opened, call discover primary services, move state
+      break;
+    case S3_CHECK_SERVICES:
+      //TODO
+      //Wait for procedure to complete
+      //if procedure complete, call discover characteristics, move state
+      break;
+    case S4_CHECK_CHARACTERISTICS:
+      //TODO
+      //Wait for procedure to complete
+      //if procedure complete, enable indications, move state
+      //Update Display to say Handling Indications
+      break;
+    case S5_RX_INDICATIONS:
+      //TODO
+      //Handle Indications received
+      //Check indications are for HTM service / temperature characteristic
+      //Update Display
+      break;
+  }
 
   case sl_bt_evt_scanner_scan_report_id:
   case sl_bt_evt_gatt_procedure_completed_id:
@@ -28,7 +70,7 @@ void discovery_stateMachine(sl_bt_msg_t *evt){
   case sl_bt_evt_gatt_characteristic_id:
   case sl_bt_evt_gatt_characteristic_value_id:
 
-  (void) evt;
+  current_state = next_state;
 }
 
 typedef enum i2c_transfer_state_t {
