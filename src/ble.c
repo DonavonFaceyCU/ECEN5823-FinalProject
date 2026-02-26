@@ -7,6 +7,8 @@
 
 #include "ble.h"
 
+#include "math.h"
+
 // Include logging specifically for this .c file
 #define INCLUDE_LOG_DEBUG 1
 #include "src/log.h"
@@ -38,6 +40,10 @@ static bool connected = false;
 static bool indication_inflight = false;
 static bool indication_enabled = false;
 
+static int32_t FLOAT_TO_INT32(const uint8_t *buffer_ptr);
+
+uint8_t assignmentNumber = ASSIGNMENT_NUMBER;
+
 bool indication_allowed(){
   return indication_enabled;
 }
@@ -57,6 +63,7 @@ void handle_ble_event(sl_bt_msg_t *evt){
   sl_status_t sc;
   bd_addr address;
   uint8_t address_type;
+
   //TODO: Figure out why it thinks indications are enabled by default
   switch (SL_BT_MSG_ID(evt->header)) {
     case sl_bt_evt_system_boot_id:
@@ -87,7 +94,7 @@ void handle_ble_event(sl_bt_msg_t *evt){
 
       displayInit();
 
-      displayPrintf(DISPLAY_ROW_ASSIGNMENT, "A6");
+      displayPrintf(DISPLAY_ROW_ASSIGNMENT, "A%u", assignmentNumber);
 
 #if DEVICE_IS_BLE_SERVER
       displayPrintf(DISPLAY_ROW_NAME, "Server");
@@ -161,18 +168,20 @@ void handle_ble_event(sl_bt_msg_t *evt){
           //TODO Handle Indication Enable tracking
           uint16_t client_config_flags = evt->data.evt_gatt_server_characteristic_status.client_config_flags;
 
-               if(client_config_flags == sl_bt_gatt_server_disable)                           {indication_enabled = false;}
-               else if(client_config_flags == sl_bt_gatt_server_indication)                   {indication_enabled = true;}
-               else if(client_config_flags == sl_bt_gatt_server_notification)                 {indication_enabled = false;}
-               else if(client_config_flags == sl_bt_gatt_server_notification_and_indication)  {indication_enabled = true;}
+          if(evt->data.evt_gatt_server_characteristic_status.characteristic != gattdb_temperature_measurement){
+              break; //Do not care about any indications aside from the temperature measurement
+          }
 
-               if(indication_enabled){
-                   //TODO: Decide if needed
-                   //sl_status_t sc = sl_bt_gatt_server_read_attribute_value(gattdb_temperature_measurement, 0, value_len, value);
-                   //Nothing. Let state machine update the value once it samples
-               } else {
-                   displayPrintf(DISPLAY_ROW_TEMPVALUE, "");
-               }
+          if(client_config_flags == sl_bt_gatt_server_disable)                           {indication_enabled = false;}
+          else if(client_config_flags == sl_bt_gatt_server_indication)                   {indication_enabled = true;}
+          else if(client_config_flags == sl_bt_gatt_server_notification)                 {indication_enabled = false;}
+          else if(client_config_flags == sl_bt_gatt_server_notification_and_indication)  {indication_enabled = true;}
+
+          if(indication_enabled){
+            LETIMER_IntSet(LETIMER0, LETIMER_IF_UF); //Trigger an UF event to guarantee a temperature measurement is taken after indications are enabled
+          } else {
+            displayPrintf(DISPLAY_ROW_TEMPVALUE, "");
+          }
 
       //confirmation received
       } else if (evt->data.evt_gatt_server_characteristic_status.status_flags == sl_bt_gatt_server_confirmation) {
@@ -204,7 +213,11 @@ void send_temperature_reading(size_t value_len, const uint8_t* value){
       LOG_ERROR("BT STACK INDICATION SEND");
   }
 
-  displayPrintf(DISPLAY_ROW_TEMPVALUE, "TODO: TEMPERATURE");
+  int32_t temperature = FLOAT_TO_INT32(value);
+  uint16_t temp_wholeDigits = (temperature & 0xFFFF0000) >> 16;
+  uint16_t temp_tenthDigits = (temperature & 0x0000FFFF) >> 0;
+
+  displayPrintf(DISPLAY_ROW_TEMPVALUE, "Temp = %i.%i Celsius", temp_wholeDigits, temp_tenthDigits);
 }
 
 void update_temperature_reading(size_t value_len, const uint8_t* value){
@@ -214,3 +227,36 @@ void update_temperature_reading(size_t value_len, const uint8_t* value){
       LOG_ERROR("BT STACK GATTDB UPDATE");
   }
 }
+
+// -----------------------------------------------
+// Private function, original from Dan Walkes. I fixed a sign extension bug.
+// We'll need this for Client A7 assignment to convert health thermometer
+// indications back to an integer. Convert IEEE-11073 32-bit float to signed integer.
+//
+// 2/26: Modified to include fractional digits. Upper 16 bits are in integer, lower 16 are in tenths.
+// -----------------------------------------------
+static int32_t FLOAT_TO_INT32(const uint8_t *buffer_ptr)
+{
+ uint8_t signByte = 0;
+ int32_t mantissa;
+ // input data format is:
+ // [0] = flags byte, bit[0] = 0 -> Celsius; =1 -> Fahrenheit
+ // [3][2][1] = mantissa (2's complement)
+ // [4] = exponent (2's complement)
+ // BT buffer_ptr[0] has the flags byte
+ int8_t exponent = (int8_t)buffer_ptr[4];
+ // sign extend the mantissa value if the mantissa is negative
+ if (buffer_ptr[3] & 0x80) { // msb of [3] is the sign of the mantissa
+ signByte = 0xFF;
+ }
+ mantissa = (int32_t) (buffer_ptr[1] << 0) |
+ (buffer_ptr[2] << 8) |
+ (buffer_ptr[3] << 16) |
+ (signByte << 24) ;
+ // value = 10^exponent * mantissa, pow() returns a double type
+ int16_t wholeDigits = (int16_t) (pow(10, exponent) * mantissa);
+ int16_t tenthDigits = ((int16_t) (pow(10, exponent+1) * mantissa)) %10;
+
+ return ((wholeDigits << 16) | tenthDigits);
+
+} // FLOAT_TO_INT32
