@@ -66,8 +66,36 @@ void handle_ble_event(sl_bt_msg_t *evt){
 
   //TODO: Figure out why it thinks indications are enabled by default
   switch (SL_BT_MSG_ID(evt->header)) {
+
+//Events shared by Server and Client
     case sl_bt_evt_system_boot_id:
 
+      //Handle Display aspects first
+      displayInit();
+      displayPrintf(DISPLAY_ROW_ASSIGNMENT, "A%u", assignmentNumber);
+#if DEVICE_IS_BLE_SERVER
+      displayPrintf(DISPLAY_ROW_NAME, "Server");
+      displayPrintf(DISPLAY_ROW_CONNECTION, "Advertising");
+#else //DEVICE_IS_BLE_CLIENT
+      displayPrintf(DISPLAY_ROW_NAME, "Client");
+      displayPrintf(DISPLAY_ROW_CONNECTION, "Discovering");
+#endif
+
+      bd_addr address;
+      sc = sl_bt_system_get_identity_address(&address, sl_bt_gap_public_address);
+      if(sc != SL_STATUS_OK){
+          LOG_ERROR("ADDRESS GET");
+      }
+      displayPrintf(DISPLAY_ROW_BTADDR, "%x:%x:%x:%x:%x:%x",
+                    address.addr[0],
+                    address.addr[1],
+                    address.addr[2],
+                    address.addr[3],
+                    address.addr[4],
+                    address.addr[5]);
+
+      //Handle BLE advertising / discovery initialization here
+#if DEVICE_IS_BLE_SERVER
       // Extract unique ID from BT Address.
       sc = sl_bt_system_get_identity_address(&address, &address_type);
 
@@ -91,31 +119,11 @@ void handle_ble_event(sl_bt_msg_t *evt){
       if(sc != SL_STATUS_OK){
           LOG_ERROR("BT STACK BOOTUP");
       }
-
-      displayInit();
-
-      displayPrintf(DISPLAY_ROW_ASSIGNMENT, "A%u", assignmentNumber);
-
-#if DEVICE_IS_BLE_SERVER
-      displayPrintf(DISPLAY_ROW_NAME, "Server");
-      displayPrintf(DISPLAY_ROW_CONNECTION, "Advertising");
-#else
-      displayPrintf(DISPLAY_ROW_NAME, "Client");
+#else //DEVICE_IS_BLE_CLIENT
 #endif
-      bd_addr address;
-      sc = sl_bt_system_get_identity_address(&address, sl_bt_gap_public_address);
-      if(sc != SL_STATUS_OK){
-          LOG_ERROR("ADDRESS GET");
-      }
-      displayPrintf(DISPLAY_ROW_BTADDR, "%x:%x:%x:%x:%x:%x",
-                    address.addr[0],
-                    address.addr[1],
-                    address.addr[2],
-                    address.addr[3],
-                    address.addr[4],
-                    address.addr[5]);
       break;
 
+#if DEVICE_IS_BLE_SERVER
     case sl_bt_evt_connection_opened_id:
       connection_handle = evt->data.evt_connection_opened.connection;
       sc = sl_bt_advertiser_stop(advertising_set_handle);
@@ -130,38 +138,53 @@ void handle_ble_event(sl_bt_msg_t *evt){
       if(sc != SL_STATUS_OK){
           LOG_ERROR("BT STACK CONNECTION OPENED");
       }
-
+#else //DEVICE_IS_BLE_CLIENT
+      //TODO: Add server address to addr line 2
+      //TODO: Discover Primary Services
+#endif
       displayPrintf(DISPLAY_ROW_CONNECTION, "Connected");
       connected = true;
       break;
 
     case sl_bt_evt_connection_closed_id:
+#if DEVICE_IS_BLE_SERVER
       sc = sl_bt_legacy_advertiser_start(advertising_set_handle, sl_bt_advertiser_connectable_scannable);
+      displayPrintf(DISPLAY_ROW_CONNECTION, "Advertising");
+      displayPrintf(DISPLAY_ROW_TEMPVALUE, "");
+#else //DEVICE_IS_BLE_CLIENT
+      //TODO: Start Scanner
+      //TODO: Update Display to Discovering
+#endif
 
       if(sc != SL_STATUS_OK){
           LOG_ERROR("BT STACK CONNECTION CLOSED");
       }
 
-      displayPrintf(DISPLAY_ROW_CONNECTION, "Advertising");
-      displayPrintf(DISPLAY_ROW_TEMPVALUE, "");
       connected = false;
       indication_enabled = false;
       break;
 
+    /*
     case sl_bt_evt_connection_parameters_id:
-      /*
       LOG_INFO("Connection Parameters Updated:\n");
       LOG_INFO("  Interval: %.2f ms\n", evt->data.evt_connection_parameters.interval * 1.25f);
       LOG_INFO("  Latency : %u\n", evt->data.evt_connection_parameters.latency);
       LOG_INFO("  Timeout : %.0f ms\n", evt->data.evt_connection_parameters.timeout * 10.0f);
-      */
-    break;
       break;
+    */
 
     case sl_bt_evt_system_external_signal_id:
-      //Do nothing. This is handled by temperature state machine
+      //Do nothing.
+      //On Server, this is handled by temperature state machine.
+      //On Client, this doesn't need to run at all.
       break;
 
+    case sl_bt_evt_system_soft_timer_id:
+      displayUpdate();
+      break;
+
+//Events exclusive to Server
+#if SL_IS_BLE_SERVER
     case sl_bt_evt_gatt_server_characteristic_status_id:
       //client config changed
       if (evt->data.evt_gatt_server_characteristic_status.status_flags == sl_bt_gatt_server_client_config) {
@@ -194,9 +217,25 @@ void handle_ble_event(sl_bt_msg_t *evt){
       //LOG_ERROR("Indication Timed Out");
       break;
 
-    case sl_bt_evt_system_soft_timer_id:
-      displayUpdate();
+//Events exclusive to Client
+#else //DEVICE_IS_BLE_CLIENT
+    case sl_bt_evt_scanner_scan_report_id:
+      //Handled by Discovery State Machine
       break;
+    case sl_bt_evt_gatt_procedure_completed_id:
+      //Handled by Discovery State Machine
+      break;
+    case sl_bt_evt_gatt_service_id:
+      //Handled by Discovery State Machine
+      break;
+    case sl_bt_evt_gatt_characteristic_id:
+      //Handled by Discovery State Machine
+      break;
+    case sl_bt_evt_gatt_characteristic_value_id:
+      //Handled by Discovery State Machine
+      break;
+#endif
+
 
     default: //do nothing
       break;

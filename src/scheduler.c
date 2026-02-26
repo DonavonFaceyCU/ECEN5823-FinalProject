@@ -9,6 +9,28 @@
 
 ///////////////////////////// State Machines are Below ///////////////////////////////////
 
+typedef enum discovery_state_t {
+  S0_STARTUP = 0,
+  S1_DISCOVERING,
+  S2_CONNECTING,
+  S3_CONNECTED,
+  S4_SERVICES_LOGGED,
+  S5_CHARACTERISTICS_LOGGED,
+  I2C_TRANSFER_NUM_STATES
+} i2c_transfer_state_t;
+
+void discovery_stateMachine(sl_bt_msg_t *evt){
+  //TODO A7
+
+  case sl_bt_evt_scanner_scan_report_id:
+  case sl_bt_evt_gatt_procedure_completed_id:
+  case sl_bt_evt_gatt_service_id:
+  case sl_bt_evt_gatt_characteristic_id:
+  case sl_bt_evt_gatt_characteristic_value_id:
+
+  (void) evt;
+}
+
 typedef enum i2c_transfer_state_t {
   S0_IDLE = 0,
   S1_STARTUP,
@@ -17,12 +39,6 @@ typedef enum i2c_transfer_state_t {
   S4_PUBLISH,
   I2C_TRANSFER_NUM_STATES
 } i2c_transfer_state_t;
-
-void discovery_stateMachine(sl_bt_msg_t *evt){
-  //TODO A7
-
-  (void) evt;
-}
 
 void temperature_stateMachine(sl_bt_msg_t *evt){
   static i2c_transfer_state_t current_state;
