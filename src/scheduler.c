@@ -36,14 +36,19 @@ void discovery_stateMachine(sl_bt_msg_t *evt){
   uint32_t event = SL_BT_MSG_ID(evt->header);
 
   if(event == sl_bt_evt_connection_closed_id){
-      current_state = S1_DISCOVERING;
+      sl_bt_connection_close(discoveryHandle);
+      sl_bt_scanner_start(sl_bt_scanner_scan_phy_1m, sl_bt_scanner_discover_observation);
+      displayPrintf(DISPLAY_ROW_CONNECTION, "Discovering");
+      displayPrintf(DISPLAY_ROW_TEMPVALUE, "");
+      displayPrintf(DISPLAY_ROW_BTADDR2, "");
+      next_state = S1_DISCOVERING;
       return;
   }
 
   sl_bt_evt_scanner_scan_report_t* report = NULL;
   bd_addr server_address = SERVER_BT_ADDRESS;
 
-  displayPrintf(DISPLAY_ROW_10, "S%u", current_state);
+  //displayPrintf(DISPLAY_ROW_10, "S%u", current_state);
 
   switch(current_state){
     case S0_STARTUP:
@@ -69,6 +74,18 @@ void discovery_stateMachine(sl_bt_msg_t *evt){
       //if connection opened, call discover primary services, move state
       if(event == sl_bt_evt_connection_opened_id){
           sl_bt_gatt_discover_primary_services_by_uuid(discoveryHandle, sizeof(HTM_service_UUID), HTM_service_UUID);
+
+          bd_addr* server_address = &evt->data.evt_connection_opened.address;
+
+          displayPrintf(DISPLAY_ROW_CONNECTION, "Connected");
+          displayPrintf(DISPLAY_ROW_BTADDR2, "%x:%x:%x:%x:%x:%x",
+                    server_address->addr[0],
+                    server_address->addr[1],
+                    server_address->addr[2],
+                    server_address->addr[3],
+                    server_address->addr[4],
+                    server_address->addr[5]);
+
           next_state = S3_CHECK_SERVICES;
       }
       //timeout while connecting
@@ -98,6 +115,7 @@ void discovery_stateMachine(sl_bt_msg_t *evt){
       if(event == sl_bt_evt_gatt_procedure_completed_id){
           displayPrintf(DISPLAY_ROW_CONNECTION, "Handling Indications");
           sl_bt_gatt_set_characteristic_notification(discoveryHandle, TempMeas_characteristic_handle, sl_bt_gatt_indication);
+          timerWaitUs(8000000); //8 second timeout to start receiving indications
           next_state = S5_RX_INDICATIONS;
       }
       //characteristic data received
@@ -123,6 +141,16 @@ void discovery_stateMachine(sl_bt_msg_t *evt){
           uint16_t temp_tenthDigits = (temperature & 0x0000FFFF) >> 0;
 
           displayPrintf(DISPLAY_ROW_TEMPVALUE, "Temp = %i.%i Celsius", temp_wholeDigits, temp_tenthDigits);
+          timerWaitUs(4000000); //4 second timeout reset on receiving indications
+      }
+      //timeout while receiving indications
+      if(event == sl_bt_evt_system_external_signal_id && Scheduler_Active_COMP1(evt)){
+          sl_bt_connection_close(discoveryHandle);
+          sl_bt_scanner_start(sl_bt_scanner_scan_phy_1m, sl_bt_scanner_discover_observation);
+          displayPrintf(DISPLAY_ROW_CONNECTION, "Discovering");
+          displayPrintf(DISPLAY_ROW_TEMPVALUE, "");
+          displayPrintf(DISPLAY_ROW_BTADDR2, "");
+          next_state = S1_DISCOVERING;
       }
       break;
     default:

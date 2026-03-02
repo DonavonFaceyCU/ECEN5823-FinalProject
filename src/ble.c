@@ -158,7 +158,6 @@ void handle_ble_event(sl_bt_msg_t *evt){
 
     case sl_bt_evt_connection_closed_id:
 #if DEVICE_IS_BLE_SERVER
-      sl_
       sc = sl_bt_legacy_advertiser_start(advertising_set_handle, sl_bt_advertiser_connectable_scannable);
       displayPrintf(DISPLAY_ROW_CONNECTION, "Advertising");
       displayPrintf(DISPLAY_ROW_TEMPVALUE, "");
