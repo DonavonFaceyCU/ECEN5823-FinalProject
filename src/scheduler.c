@@ -16,59 +16,122 @@ typedef enum discovery_state_t {
   S3_CHECK_SERVICES,
   S4_CHECK_CHARACTERISTICS,
   S5_RX_INDICATIONS,
-  I2C_TRANSFER_NUM_STATES
+  DISCOVERY_NUM_STATES
 } discovery_state_t;
+
+static uint8_t discoveryHandle;
+
+static uint8_t HTM_service_UUID[] = {0x09, 0x18};
+static uint32_t HTM_service_handle;
+
+static uint8_t TempMeas_characteristic_UUID[] = {0x1C, 0x2A};
+static uint32_t TempMeas_characteristic_handle;
+
+#define HTM_SERVICE (0x1809)
 
 void discovery_stateMachine(sl_bt_msg_t *evt){
   static discovery_state_t current_state;
   discovery_state_t next_state = current_state;
 
-  uint8_t event = SL_BT_MSG_ID(evt->header);
+  uint32_t event = SL_BT_MSG_ID(evt->header);
 
   if(event == sl_bt_evt_connection_closed_id){
       current_state = S1_DISCOVERING;
       return;
   }
 
+  sl_bt_evt_scanner_scan_report_t* report = NULL;
+  bd_addr server_address = SERVER_BT_ADDRESS;
+
+  displayPrintf(DISPLAY_ROW_10, "S%u", current_state);
+
   switch(current_state){
     case S0_STARTUP:
       if(event == sl_bt_evt_system_boot_id){
+          displayPrintf(DISPLAY_ROW_CONNECTION, "Discovering");
           next_state = S1_DISCOVERING;
       }
       break;
     case S1_DISCOVERING:
-      //TODO
       //if scanner_scan_report_id matches our server, move state
       //call open command
+      if(event == sl_bt_evt_scanner_scan_report_id){
+          report = &evt->data.evt_scanner_scan_report;
+          if(memcmp(&(report->address.addr), &server_address, sizeof(bd_addr)) == 0){
+              sl_bt_scanner_stop();
+              sl_bt_connection_open(report->address, report->address_type, sl_bt_gap_phy_1m, &discoveryHandle);
+              timerWaitUs(1000000); //1 second timeout on connecting
+              next_state = S2_CONNECTING;
+          }
+      }
       break;
     case S2_CONNECTING:
-      //TODO
       //if connection opened, call discover primary services, move state
+      if(event == sl_bt_evt_connection_opened_id){
+          sl_bt_gatt_discover_primary_services_by_uuid(discoveryHandle, sizeof(HTM_service_UUID), HTM_service_UUID);
+          next_state = S3_CHECK_SERVICES;
+      }
+      //timeout while connecting
+      if(event == sl_bt_evt_system_external_signal_id && Scheduler_Active_COMP1(evt)){
+          sl_bt_connection_close(discoveryHandle);
+          sl_bt_scanner_start(sl_bt_scanner_scan_phy_1m, sl_bt_scanner_discover_observation);
+          displayPrintf(DISPLAY_ROW_CONNECTION, "Discovering");
+          next_state = S1_DISCOVERING;
+      }
       break;
     case S3_CHECK_SERVICES:
-      //TODO
       //Wait for procedure to complete
       //if procedure complete, call discover characteristics, move state
+      if(event == sl_bt_evt_gatt_procedure_completed_id){
+          sl_bt_gatt_discover_characteristics_by_uuid(discoveryHandle, HTM_service_handle, sizeof(TempMeas_characteristic_UUID), TempMeas_characteristic_UUID);
+          next_state = S4_CHECK_CHARACTERISTICS;
+      }
+      //service data received
+      if(event == sl_bt_evt_gatt_service_id){
+          HTM_service_handle = evt->data.evt_gatt_service.service;
+      }
       break;
     case S4_CHECK_CHARACTERISTICS:
-      //TODO
       //Wait for procedure to complete
       //if procedure complete, enable indications, move state
       //Update Display to say Handling Indications
+      if(event == sl_bt_evt_gatt_procedure_completed_id){
+          displayPrintf(DISPLAY_ROW_CONNECTION, "Handling Indications");
+          sl_bt_gatt_set_characteristic_notification(discoveryHandle, TempMeas_characteristic_handle, sl_bt_gatt_indication);
+          next_state = S5_RX_INDICATIONS;
+      }
+      //characteristic data received
+      if(event == sl_bt_evt_gatt_characteristic_id){
+          TempMeas_characteristic_handle = evt->data.evt_gatt_characteristic.characteristic;
+      }
       break;
     case S5_RX_INDICATIONS:
-      //TODO
       //Handle Indications received
       //Check indications are for HTM service / temperature characteristic
       //Update Display
+      if(event == sl_bt_evt_gatt_characteristic_value_id){
+          if(evt->data.evt_gatt_characteristic_value.characteristic != TempMeas_characteristic_handle){
+              return;
+          }
+
+          sl_bt_gatt_send_characteristic_confirmation(discoveryHandle);
+
+          uint8_t* value = evt->data.evt_gatt_characteristic_value.value.data;
+
+          int32_t temperature = FLOAT_TO_INT32(value);
+          uint16_t temp_wholeDigits = (temperature & 0xFFFF0000) >> 16;
+          uint16_t temp_tenthDigits = (temperature & 0x0000FFFF) >> 0;
+
+          displayPrintf(DISPLAY_ROW_TEMPVALUE, "Temp = %i.%i Celsius", temp_wholeDigits, temp_tenthDigits);
+      }
+      break;
+    default:
       break;
   }
 
-  case sl_bt_evt_scanner_scan_report_id:
-  case sl_bt_evt_gatt_procedure_completed_id:
-  case sl_bt_evt_gatt_service_id:
-  case sl_bt_evt_gatt_characteristic_id:
-  case sl_bt_evt_gatt_characteristic_value_id:
+  //Not yet handled
+  //sl_bt_evt_gatt_service_id:
+  //sl_bt_evt_gatt_characteristic_id:
 
   current_state = next_state;
 }
@@ -164,12 +227,11 @@ void temperature_stateMachine(sl_bt_msg_t *evt){
 ///////////////////////////// Event Generic Wrappers are Below ///////////////////////////////////
 
 static uint32_t Scheduler_Active(sl_bt_msg_t *evt, uint32_t mask);
-static void Scheduler_Set(uint32_t mask);
-
 static uint32_t Scheduler_Active(sl_bt_msg_t *evt, uint32_t mask){
   return evt->data.evt_system_external_signal.extsignals & mask;
 }
 
+static void Scheduler_Set(uint32_t mask);
 static void Scheduler_Set(uint32_t mask){
   CORE_ATOMIC_SECTION
   (

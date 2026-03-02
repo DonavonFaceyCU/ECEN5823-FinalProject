@@ -22,13 +22,13 @@
 #define CONNECTION_INTERVAL_MAX 60
 
 //value = "off the air" time (milliseconds) / connection interval (milliseconds) (set to 300ms) - 1
-#define CONNECTION_SLAVE_LATENCY 3
+#define CONNECTION_SLAVE_LATENCY 4
 
 //value = (1+slave_latency)*(connection_interval*2)+1
 #define CONNECTION_SUPERVISION_TIMEOUT ((1+CONNECTION_SLAVE_LATENCY)*(75*2)+1)
 
 #define CONNECTION_EVENT_LENGTH_MIN 0x0000
-#define CONNECTION_EVENT_LENGTH_MAX 0xffff
+#define CONNECTION_EVENT_LENGTH_MAX 0x0004
 
 ble_data_struct_t ble_data;
 
@@ -39,8 +39,6 @@ ble_data_struct_t* get_ble_data(){
 static bool connected = false;
 static bool indication_inflight = false;
 static bool indication_enabled = false;
-
-static int32_t FLOAT_TO_INT32(const uint8_t *buffer_ptr);
 
 uint8_t assignmentNumber = ASSIGNMENT_NUMBER;
 
@@ -55,16 +53,15 @@ bool connection_established(){
 // Connection handle.
 static uint8_t connection_handle = 0;
 
+#if DEVICE_IS_BLE_SERVER
 // The advertising set handle allocated from Bluetooth stack.
 static uint8_t advertising_set_handle = 0xff;
+#endif
 
 //This function is heavily adapted and based on the bt-soc-thermometer example project
 void handle_ble_event(sl_bt_msg_t *evt){
   sl_status_t sc;
-  bd_addr address;
-  uint8_t address_type;
 
-  //TODO: Figure out why it thinks indications are enabled by default
   switch (SL_BT_MSG_ID(evt->header)) {
 
 //Events shared by Server and Client
@@ -81,23 +78,22 @@ void handle_ble_event(sl_bt_msg_t *evt){
       displayPrintf(DISPLAY_ROW_CONNECTION, "Discovering");
 #endif
 
-      bd_addr address;
-      sc = sl_bt_system_get_identity_address(&address, sl_bt_gap_public_address);
+      sc = sl_bt_system_get_identity_address(&ble_data.myAddress, sl_bt_gap_public_address);
       if(sc != SL_STATUS_OK){
-          LOG_ERROR("ADDRESS GET");
+          //LOG_ERROR("ADDRESS GET");
       }
       displayPrintf(DISPLAY_ROW_BTADDR, "%x:%x:%x:%x:%x:%x",
-                    address.addr[0],
-                    address.addr[1],
-                    address.addr[2],
-                    address.addr[3],
-                    address.addr[4],
-                    address.addr[5]);
+                    ble_data.myAddress.addr[0],
+                    ble_data.myAddress.addr[1],
+                    ble_data.myAddress.addr[2],
+                    ble_data.myAddress.addr[3],
+                    ble_data.myAddress.addr[4],
+                    ble_data.myAddress.addr[5]);
 
       //Handle BLE advertising / discovery initialization here
 #if DEVICE_IS_BLE_SERVER
       // Extract unique ID from BT Address.
-      sc = sl_bt_system_get_identity_address(&address, &address_type);
+      sc = sl_bt_system_get_identity_address(&ble_data.myAddress, sl_bt_gap_public_address);
 
       // Create an advertising set.
       sc = sl_bt_advertiser_create_set(&advertising_set_handle);
@@ -120,6 +116,15 @@ void handle_ble_event(sl_bt_msg_t *evt){
           LOG_ERROR("BT STACK BOOTUP");
       }
 #else //DEVICE_IS_BLE_CLIENT
+      sl_bt_scanner_set_parameters(sl_bt_scanner_scan_mode_passive, 0x0010, 0x0010);
+      sl_bt_connection_set_default_parameters(CONNECTION_INTERVAL_MIN,
+                                              CONNECTION_INTERVAL_MAX,
+                                              CONNECTION_SLAVE_LATENCY,
+                                              CONNECTION_SUPERVISION_TIMEOUT,
+                                              CONNECTION_EVENT_LENGTH_MIN,
+                                              CONNECTION_EVENT_LENGTH_MAX);
+      sl_bt_scanner_start(sl_bt_scanner_scan_phy_1m, sl_bt_scanner_discover_observation);
+      displayPrintf(DISPLAY_ROW_CONNECTION, "Discovering");
 #endif
       break;
 
@@ -139,8 +144,13 @@ void handle_ble_event(sl_bt_msg_t *evt){
           LOG_ERROR("BT STACK CONNECTION OPENED");
       }
 #else //DEVICE_IS_BLE_CLIENT
-      //TODO: Add server address to addr line 2
-      //TODO: Discover Primary Services
+      displayPrintf(DISPLAY_ROW_BTADDR2, "%x:%x:%x:%x:%x:%x",
+                    evt->data.evt_connection_opened.address.addr[0],
+                    evt->data.evt_connection_opened.address.addr[1],
+                    evt->data.evt_connection_opened.address.addr[2],
+                    evt->data.evt_connection_opened.address.addr[3],
+                    evt->data.evt_connection_opened.address.addr[4],
+                    evt->data.evt_connection_opened.address.addr[5]);
 #endif
       displayPrintf(DISPLAY_ROW_CONNECTION, "Connected");
       connected = true;
@@ -148,16 +158,15 @@ void handle_ble_event(sl_bt_msg_t *evt){
 
     case sl_bt_evt_connection_closed_id:
 #if DEVICE_IS_BLE_SERVER
+      sl_
       sc = sl_bt_legacy_advertiser_start(advertising_set_handle, sl_bt_advertiser_connectable_scannable);
       displayPrintf(DISPLAY_ROW_CONNECTION, "Advertising");
       displayPrintf(DISPLAY_ROW_TEMPVALUE, "");
 #else //DEVICE_IS_BLE_CLIENT
-      //TODO: Start Scanner
-      //TODO: Update Display to Discovering
 #endif
 
       if(sc != SL_STATUS_OK){
-          LOG_ERROR("BT STACK CONNECTION CLOSED");
+          //LOG_ERROR("BT STACK CONNECTION CLOSED");
       }
 
       connected = false;
@@ -184,11 +193,10 @@ void handle_ble_event(sl_bt_msg_t *evt){
       break;
 
 //Events exclusive to Server
-#if SL_IS_BLE_SERVER
+#if DEVICE_IS_BLE_SERVER
     case sl_bt_evt_gatt_server_characteristic_status_id:
       //client config changed
       if (evt->data.evt_gatt_server_characteristic_status.status_flags == sl_bt_gatt_server_client_config) {
-          //TODO Handle Indication Enable tracking
           uint16_t client_config_flags = evt->data.evt_gatt_server_characteristic_status.client_config_flags;
 
           if(evt->data.evt_gatt_server_characteristic_status.characteristic != gattdb_temperature_measurement){
@@ -249,7 +257,7 @@ void send_temperature_reading(size_t value_len, const uint8_t* value){
   sl_status_t sc = sl_bt_gatt_server_send_indication(connection_handle, gattdb_temperature_measurement, value_len, value);
 
   if(sc != SL_STATUS_OK){
-      LOG_ERROR("BT STACK INDICATION SEND");
+      //LOG_ERROR("BT STACK INDICATION SEND");
   }
 
   int32_t temperature = FLOAT_TO_INT32(value);
@@ -263,7 +271,7 @@ void update_temperature_reading(size_t value_len, const uint8_t* value){
   sl_status_t sc = sl_bt_gatt_server_write_attribute_value(gattdb_temperature_measurement, 0, value_len, value);
 
   if(sc != SL_STATUS_OK){
-      LOG_ERROR("BT STACK GATTDB UPDATE");
+      //LOG_ERROR("BT STACK GATTDB UPDATE");
   }
 }
 
@@ -274,7 +282,7 @@ void update_temperature_reading(size_t value_len, const uint8_t* value){
 //
 // 2/26: Modified to include fractional digits. Upper 16 bits are in integer, lower 16 are in tenths.
 // -----------------------------------------------
-static int32_t FLOAT_TO_INT32(const uint8_t *buffer_ptr)
+int32_t FLOAT_TO_INT32(const uint8_t *buffer_ptr)
 {
  uint8_t signByte = 0;
  int32_t mantissa;

@@ -29,7 +29,10 @@ typedef struct {
  // The advertising set handle allocated from Bluetooth stack.
  uint8_t advertisingSetHandle;
  // values unique for client
+ uint8_t discoverySetHandle;
 } ble_data_struct_t;
+
+int32_t FLOAT_TO_INT32(const uint8_t *buffer_ptr);
 
 ble_data_struct_t* get_ble_data();
 
