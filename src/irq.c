@@ -70,8 +70,8 @@ uint8_t timerWaitUs_polled(uint32_t delay_usec){
   return 1;
 }
 
-uint32_t targetUnderflow;
-uint32_t targetCounts;
+uint32_t targetUnderflow = 0xFFFFFFFF;
+uint32_t targetCounts = 0xFFFFFFFF;
 static uint8_t timerWaitUs_irq(uint32_t delay_usec){
   uint64_t currentTime = Time_getTime();
 
@@ -141,14 +141,34 @@ void GPIO_EVEN_IRQHandler(void)
 {
   NVIC_DisableIRQ(GPIO_EVEN_IRQn);
   uint32_t flags = GPIO_IntGet();
-  GPIO_IntClear(flags);
+  GPIO_IntClear(flags & 0x55);
 
   if (flags & (1 << B0_pin)){
-    if (GPIO_PinInGet(B0_port, B0_pin)){ //Rising Edge - DISABLED
+    if (GPIO_PinInGet(Button_port, B0_pin)){
       Scheduler_Set_PB0_released();
     } else { //Falling Edge - ENABLED
       Scheduler_Set_PB0_pressed();
     }
   }
   NVIC_EnableIRQ(GPIO_EVEN_IRQn);
+}
+
+void GPIO_ODD_IRQHandler(void)
+{
+  NVIC_DisableIRQ(GPIO_ODD_IRQn);
+  uint32_t flags = GPIO_IntGet();
+  GPIO_IntClear(flags & 0xAA);
+
+  if (flags & (1 << B1_pin)){
+    if (GPIO_PinInGet(Button_port, B1_pin)){ //Rising Edge - DISABLED
+      //Do nothing
+    } else { //Falling Edge - ENABLED
+      if (GPIO_PinInGet(Button_port, B0_pin)){ // B0 released - Read Button State
+          Scheduler_Set_ButtonState_Read();
+      } else { // B0 pressed - Toggle Indication
+          Scheduler_Set_ButtonState_ToggleIndication();
+      }
+    }
+  }
+  NVIC_EnableIRQ(GPIO_ODD_IRQn);
 }

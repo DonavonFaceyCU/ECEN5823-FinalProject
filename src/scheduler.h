@@ -33,6 +33,12 @@ void Scheduler_Set_PB0_pressed();
 uint32_t Scheduler_Active_PB0_released();
 void Scheduler_Set_PB0_released();
 
+uint32_t Scheduler_Active_ButtonState_ToggleIndication();
+void Scheduler_Set_ButtonState_ToggleIndication();
+
+uint32_t Scheduler_Active_ButtonState_Read();
+void Scheduler_Set_ButtonState_Read();
+
 void temperature_stateMachine(sl_bt_msg_t *evt);
 void discovery_stateMachine(sl_bt_msg_t *evt);
 

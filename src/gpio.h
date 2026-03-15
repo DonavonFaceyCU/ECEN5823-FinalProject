@@ -37,8 +37,9 @@
 #define DISPLAY_EXTCOMIN_port (gpioPortD)
 #define DISPLAY_EXTCOMIN_pin  (13)
 
-#define B0_port   (gpioPortF)
+#define Button_port   (gpioPortF)
 #define B0_pin    (6)
+#define B1_pin    (7)
 
 // Function prototypes
 void gpioInit();

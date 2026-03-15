@@ -45,10 +45,17 @@ void gpioInit()
 	GPIO_PinModeSet(LED_port, LED0_pin, gpioModePushPull, false);
 	GPIO_PinModeSet(LED_port, LED1_pin, gpioModePushPull, false);
 
-	GPIO_PinModeSet(B0_port, B0_pin, gpioModeInput, 1);
-	GPIO_ExtIntConfig(B0_port, B0_pin, B0_pin, true, true, true);
+	//Button 0 Config
+	GPIO_PinModeSet(Button_port, B0_pin, gpioModeInput, 1);
+	GPIO_ExtIntConfig(Button_port, B0_pin, B0_pin, true, true, true);
   NVIC_ClearPendingIRQ(GPIO_EVEN_IRQn);
   NVIC_EnableIRQ(GPIO_EVEN_IRQn);
+
+  //Button 1 Config
+  GPIO_PinModeSet(Button_port, B1_pin, gpioModeInput, 1);
+  GPIO_ExtIntConfig(Button_port, B1_pin, B1_pin, true, true, true);
+  NVIC_ClearPendingIRQ(GPIO_ODD_IRQn);
+  NVIC_EnableIRQ(GPIO_ODD_IRQn);
 } // gpioInit()
 
 

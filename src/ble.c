@@ -63,7 +63,9 @@ static uint8_t advertising_set_handle = 0xff;
 //This function is heavily adapted and based on the bt-soc-thermometer example project
 void handle_ble_event(sl_bt_msg_t *evt){
   sl_status_t sc;
+#if DEVICE_IS_BLE_SERVER
   uint8_t button_state;
+#endif
 
   switch (SL_BT_MSG_ID(evt->header)) {
 
@@ -192,6 +194,7 @@ void handle_ble_event(sl_bt_msg_t *evt){
       break;
     */
 
+#if DEVICE_IS_BLE_SERVER
     case sl_bt_evt_system_external_signal_id:
       //On Server, handle PB0 presses
       if(Scheduler_Active_PB0_pressed(evt)){
@@ -214,6 +217,7 @@ void handle_ble_event(sl_bt_msg_t *evt){
 
       //On Client, this doesn't need to run at all.
       break;
+#endif
 
     case sl_bt_evt_system_soft_timer_id:
       displayUpdate();
@@ -254,12 +258,14 @@ void handle_ble_event(sl_bt_msg_t *evt){
       //confirmation received
       } else if (evt->data.evt_gatt_server_characteristic_status.status_flags == sl_bt_gatt_server_confirmation) {
           ble_data.indication_inflight = false;
+          displayPrintf(DISPLAY_ROW_11, "Inflight False");
           sendIndication(0, 0, 0); // send new Indication without queueing anything
       }
       break;
 
     case sl_bt_evt_gatt_server_indication_timeout_id:
       ble_data.indication_inflight = false;
+      displayPrintf(DISPLAY_ROW_11, "Inflight False");
       //LOG_ERROR("Indication Timed Out");
       break;
 
@@ -337,6 +343,10 @@ static void sendIndication(uint16_t characteristic, size_t value_len, uint8_t* v
   if((charHandle == gattdb_temperature_measurement && ble_data.HTM_indication_enabled) ||
      (charHandle == gattdb_button_state && ble_data.Button_indication_enabled && ble_data.bonded)){
       sc = sl_bt_gatt_server_send_indication(connection_handle, charHandle, bufLength, buffer);
+      static uint32_t indications_sent;
+      indications_sent++;
+      displayPrintf(DISPLAY_ROW_10, "Ind Sent: %u", indications_sent);
+      displayPrintf(DISPLAY_ROW_11, "Inflight True");
       ble_data.indication_inflight = true;
   }
 
