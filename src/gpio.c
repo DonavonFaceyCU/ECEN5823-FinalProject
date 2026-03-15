@@ -31,21 +31,6 @@
 
 #include "gpio.h"
 
-
-// Student Edit: Define these, 0's are placeholder values.
-//
-// See the radio board user guide at https://www.silabs.com/documents/login/user-guides/ug279-brd4104a-user-guide.pdf
-// and GPIO documentation at https://siliconlabs.github.io/Gecko_SDK_Doc/efm32g/html/group__GPIO.html
-// to determine the correct values for these.
-// If these links have gone bad, consult the reference manual and/or the datasheet for the MCU.
-// Change to correct port and pins:
-#define LED_port   (gpioPortF)
-#define LED0_pin   (4)
-#define LED1_pin   (5)
-
-#define DISPLAY_EXTCOMIN_port (gpioPortD)
-#define DISPLAY_EXTCOMIN_pin  (13)
-
 // Set GPIO drive strengths and modes of operation
 void gpioInit()
 {
@@ -60,7 +45,10 @@ void gpioInit()
 	GPIO_PinModeSet(LED_port, LED0_pin, gpioModePushPull, false);
 	GPIO_PinModeSet(LED_port, LED1_pin, gpioModePushPull, false);
 
-
+	GPIO_PinModeSet(B0_port, B0_pin, gpioModeInput, 1);
+	GPIO_ExtIntConfig(B0_port, B0_pin, B0_pin, true, true, true);
+  NVIC_ClearPendingIRQ(GPIO_EVEN_IRQn);
+  NVIC_EnableIRQ(GPIO_EVEN_IRQn);
 } // gpioInit()
 
 

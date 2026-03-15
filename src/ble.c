@@ -30,24 +30,26 @@
 #define CONNECTION_EVENT_LENGTH_MIN 0x0000
 #define CONNECTION_EVENT_LENGTH_MAX 0x0004
 
-ble_data_struct_t ble_data;
+static void sendIndication(uint16_t characteristic, size_t value_len, uint8_t* value);
+
+static uint32_t nextPtr(uint32_t ptr);
+static bool isEmpty();
+static bool isFull();
+
+static ble_data_struct_t ble_data;
 
 ble_data_struct_t* get_ble_data(){
   return &ble_data;
 }
 
-static bool connected = false;
-static bool indication_inflight = false;
-static bool indication_enabled = false;
-
 uint8_t assignmentNumber = ASSIGNMENT_NUMBER;
 
-bool indication_allowed(){
-  return indication_enabled;
+bool HTM_indication_allowed(){
+  return ble_data.HTM_indication_enabled;
 }
 
 bool connection_established(){
-  return connected;
+  return ble_data.connected;
 }
 
 // Connection handle.
@@ -61,6 +63,7 @@ static uint8_t advertising_set_handle = 0xff;
 //This function is heavily adapted and based on the bt-soc-thermometer example project
 void handle_ble_event(sl_bt_msg_t *evt){
   sl_status_t sc;
+  uint8_t button_state;
 
   switch (SL_BT_MSG_ID(evt->header)) {
 
@@ -73,10 +76,14 @@ void handle_ble_event(sl_bt_msg_t *evt){
 #if DEVICE_IS_BLE_SERVER
       displayPrintf(DISPLAY_ROW_NAME, "Server");
       displayPrintf(DISPLAY_ROW_CONNECTION, "Advertising");
+      displayPrintf(DISPLAY_ROW_9, "Button Released");
 #else //DEVICE_IS_BLE_CLIENT
       displayPrintf(DISPLAY_ROW_NAME, "Client");
       displayPrintf(DISPLAY_ROW_CONNECTION, "Discovering");
 #endif
+      sl_bt_sm_delete_bondings();
+      sl_bt_sm_set_bondable_mode(1);
+      sl_bt_sm_configure(SL_BT_SM_CONFIGURATION_MITM_REQUIRED | SL_BT_SM_CONFIGURATION_BONDING_REQUEST_REQUIRED | SL_BT_SM_CONFIGURATION_PREFER_MITM, sm_io_capability_displayyesno);
 
       sc = sl_bt_system_get_identity_address(&ble_data.myAddress, sl_bt_gap_public_address);
       if(sc != SL_STATUS_OK){
@@ -153,7 +160,7 @@ void handle_ble_event(sl_bt_msg_t *evt){
                     evt->data.evt_connection_opened.address.addr[5]);
 #endif
       displayPrintf(DISPLAY_ROW_CONNECTION, "Connected");
-      connected = true;
+      ble_data.connected = true;
       break;
 
     case sl_bt_evt_connection_closed_id:
@@ -168,8 +175,12 @@ void handle_ble_event(sl_bt_msg_t *evt){
           //LOG_ERROR("BT STACK CONNECTION CLOSED");
       }
 
-      connected = false;
-      indication_enabled = false;
+      ble_data.connected = false;
+      ble_data.HTM_indication_enabled = false;
+      ble_data.Button_indication_enabled = false;
+      gpioLed0SetOff();
+      gpioLed1SetOff();
+      sl_bt_sm_delete_bondings();
       break;
 
     /*
@@ -182,8 +193,25 @@ void handle_ble_event(sl_bt_msg_t *evt){
     */
 
     case sl_bt_evt_system_external_signal_id:
-      //Do nothing.
-      //On Server, this is handled by temperature state machine.
+      //On Server, handle PB0 presses
+      if(Scheduler_Active_PB0_pressed(evt)){
+          displayPrintf(DISPLAY_ROW_9, "Button Pressed");
+          button_state = 1;
+          sc = sl_bt_gatt_server_write_attribute_value(gattdb_button_state, 0, 1, &button_state);
+          sendIndication(gattdb_button_state, 1, &button_state);
+          if(ble_data.connected && !ble_data.bonded){
+              sl_bt_sm_passkey_confirm(connection_handle,1);
+              displayPrintf(DISPLAY_ROW_ACTION, "");
+              displayPrintf(DISPLAY_ROW_PASSKEY, "");
+          }
+      }
+      if(Scheduler_Active_PB0_released(evt)){
+          displayPrintf(DISPLAY_ROW_9, "Button Released");
+          button_state = 0;
+          sc = sl_bt_gatt_server_write_attribute_value(gattdb_button_state, 0, 1, &button_state);
+          sendIndication(gattdb_button_state, 1, &button_state);
+      }
+
       //On Client, this doesn't need to run at all.
       break;
 
@@ -198,30 +226,55 @@ void handle_ble_event(sl_bt_msg_t *evt){
       if (evt->data.evt_gatt_server_characteristic_status.status_flags == sl_bt_gatt_server_client_config) {
           uint16_t client_config_flags = evt->data.evt_gatt_server_characteristic_status.client_config_flags;
 
-          if(evt->data.evt_gatt_server_characteristic_status.characteristic != gattdb_temperature_measurement){
-              break; //Do not care about any indications aside from the temperature measurement
-          }
+          bool indication_enabled = false;
 
           if(client_config_flags == sl_bt_gatt_server_disable)                           {indication_enabled = false;}
           else if(client_config_flags == sl_bt_gatt_server_indication)                   {indication_enabled = true;}
           else if(client_config_flags == sl_bt_gatt_server_notification)                 {indication_enabled = false;}
           else if(client_config_flags == sl_bt_gatt_server_notification_and_indication)  {indication_enabled = true;}
 
-          if(indication_enabled){
-            LETIMER_IntSet(LETIMER0, LETIMER_IF_UF); //Trigger an UF event to guarantee a temperature measurement is taken after indications are enabled
-          } else {
-            displayPrintf(DISPLAY_ROW_TEMPVALUE, "");
+          if(evt->data.evt_gatt_server_characteristic_status.characteristic == gattdb_temperature_measurement){
+              ble_data.HTM_indication_enabled = indication_enabled;
+              if(indication_enabled){
+                  gpioLed0SetOn();
+                  LETIMER_IntSet(LETIMER0, LETIMER_IF_UF); //Trigger an UF event to guarantee a temperature measurement is taken after indications are enabled
+              } else {
+                  gpioLed0SetOff();
+                  displayPrintf(DISPLAY_ROW_TEMPVALUE, "");
+              }
+          } else if(evt->data.evt_gatt_server_characteristic_status.characteristic == gattdb_button_state){
+              ble_data.Button_indication_enabled = indication_enabled;
+              if(indication_enabled){
+                  gpioLed1SetOn();
+              } else {
+                  gpioLed1SetOff();
+              }
           }
 
       //confirmation received
       } else if (evt->data.evt_gatt_server_characteristic_status.status_flags == sl_bt_gatt_server_confirmation) {
-          indication_inflight = false;
+          ble_data.indication_inflight = false;
+          sendIndication(0, 0, 0); // send new Indication without queueing anything
       }
       break;
 
     case sl_bt_evt_gatt_server_indication_timeout_id:
-      indication_inflight = false;
+      ble_data.indication_inflight = false;
       //LOG_ERROR("Indication Timed Out");
+      break;
+
+    case sl_bt_evt_sm_confirm_bonding_id:
+      sl_bt_sm_bonding_confirm(connection_handle, 1);
+      break;
+    case sl_bt_evt_sm_confirm_passkey_id:
+      displayPrintf(DISPLAY_ROW_ACTION, "Confirm with PB0");
+      displayPrintf(DISPLAY_ROW_PASSKEY, "Passkey: %06u", evt->data.evt_sm_confirm_passkey.passkey);
+      break;
+    case sl_bt_evt_sm_bonding_failed_id:
+      break;
+    case sl_bt_evt_sm_bonded_id:
+      displayPrintf(DISPLAY_ROW_CONNECTION, "Bonded");
+      ble_data.bonded = true;
       break;
 
 //Events exclusive to Client
@@ -251,9 +304,51 @@ void handle_ble_event(sl_bt_msg_t *evt){
   (void) sc;
 }
 
-void send_temperature_reading(size_t value_len, const uint8_t* value){
-  indication_inflight = true;
-  sl_status_t sc = sl_bt_gatt_server_send_indication(connection_handle, gattdb_temperature_measurement, value_len, value);
+//If possible, sends indication from front of queue. Optionally queues a new indication to send if characteristic != -1.
+static void sendIndication(uint16_t characteristic, size_t value_len, uint8_t* value){
+  sl_status_t sc = SL_STATUS_OK;
+
+  //Queue indication if wanting to queue
+  if(characteristic != 0){
+      write_queue(characteristic, value_len, value);
+  }
+
+  //Reset Queue if no connection is established
+  if(ble_data.connected == false){
+      reset_queue();
+      return;
+  }
+
+  //if indication is already inflight, return
+  if(ble_data.indication_inflight){
+      return;
+  }
+
+  uint16_t charHandle;
+  uint32_t bufLength;
+  uint8_t buffer[MAX_BUFFER_LENGTH];
+
+  if(read_queue(&charHandle, &bufLength, buffer)){
+      //buffer either empty or error.
+      return;
+  }
+
+  //Check conditions for sending indications
+  if((charHandle == gattdb_temperature_measurement && ble_data.HTM_indication_enabled) ||
+     (charHandle == gattdb_button_state && ble_data.Button_indication_enabled && ble_data.bonded)){
+      sc = sl_bt_gatt_server_send_indication(connection_handle, charHandle, bufLength, buffer);
+      ble_data.indication_inflight = true;
+  }
+
+  if(sc != SL_STATUS_OK){
+      LOG_ERROR("Sending Indication Error");
+  }
+}
+
+void update_temperature_reading(size_t value_len, uint8_t* value){
+  sl_status_t sc = sl_bt_gatt_server_write_attribute_value(gattdb_temperature_measurement, 0, value_len, value);
+
+  sendIndication(gattdb_temperature_measurement, value_len, value);
 
   if(sc != SL_STATUS_OK){
       //LOG_ERROR("BT STACK INDICATION SEND");
@@ -263,14 +358,8 @@ void send_temperature_reading(size_t value_len, const uint8_t* value){
   uint16_t temp_wholeDigits = (temperature & 0xFFFF0000) >> 16;
   uint16_t temp_tenthDigits = (temperature & 0x0000FFFF) >> 0;
 
-  displayPrintf(DISPLAY_ROW_TEMPVALUE, "Temp = %i.%i Celsius", temp_wholeDigits, temp_tenthDigits);
-}
-
-void update_temperature_reading(size_t value_len, const uint8_t* value){
-  sl_status_t sc = sl_bt_gatt_server_write_attribute_value(gattdb_temperature_measurement, 0, value_len, value);
-
-  if(sc != SL_STATUS_OK){
-      //LOG_ERROR("BT STACK GATTDB UPDATE");
+  if(ble_data.HTM_indication_enabled){
+      displayPrintf(DISPLAY_ROW_TEMPVALUE, "Temp = %i.%i Celsius", temp_wholeDigits, temp_tenthDigits);
   }
 }
 
@@ -306,3 +395,183 @@ int32_t FLOAT_TO_INT32(const uint8_t *buffer_ptr)
  return ((wholeDigits << 16) | tenthDigits);
 
 } // FLOAT_TO_INT32
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+///                                                                                            ///
+///       Circular Buffer Code below (taken from assignment 0.5)                               ///
+///                                                                                            ///
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+#include <string.h> // for memcpy()
+
+// ---------------------------------------------------------------------
+// Private function used only by this .c file.
+// Compute the next ptr value. Given a valid ptr value, compute the next valid
+// value of the ptr and return it.
+// Isolation of functionality: This defines "how" a pointer advances.
+// ---------------------------------------------------------------------
+static uint32_t nextPtr(uint32_t ptr)
+{
+  return ((ptr + 1) % QUEUE_DEPTH);
+
+} // nextPtr()
+
+// ---------------------------------------------------------------------
+// Private function used only by this .c file.
+// Returns if buffer is full
+// ---------------------------------------------------------------------
+static bool isFull()
+{
+  return ((ble_data.wptr + 1) % QUEUE_DEPTH) == ble_data.rptr;
+
+} // isFull()
+
+// ---------------------------------------------------------------------
+// Private function used only by this .c file.
+// Returns if buffer is full
+// ---------------------------------------------------------------------
+static bool isEmpty()
+{
+  return ble_data.wptr == ble_data.rptr;
+
+} // isEmpty()
+
+
+
+// ---------------------------------------------------------------------
+// Public function.
+// This function resets the queue.
+// ---------------------------------------------------------------------
+void reset_queue (void)
+{
+  ble_data.wptr = 0;
+  ble_data.rptr = 0;
+} // reset_queue()
+
+
+
+// ---------------------------------------------------------------------
+// Public function.
+// This function writes an entry to the queue if the the queue is not full.
+// Input parameter "charHandle" should be written to queue_struct_t element "charHandle".
+// Input parameter "bufLength" should be written to queue_struct_t element "bufLength"
+// The bytes pointed at by input parameter "buffer" should be written to queue_struct_t element "buffer"
+// Returns bool false if successful or true if writing to a full fifo.
+// i.e. false means no error, true means an error occurred.
+// ---------------------------------------------------------------------
+bool write_queue (uint16_t charHandle, uint32_t bufLength, uint8_t *buffer)
+{
+  if(!buffer){
+    return true;
+  }
+
+  if(bufLength > MAX_BUFFER_LENGTH || bufLength < MIN_BUFFER_LENGTH){
+    return true;
+  }
+
+  if(isFull()){
+    return true;
+  }
+
+  ble_data.indication_queue[ble_data.wptr].charHandle = charHandle;
+  ble_data.indication_queue[ble_data.wptr].bufLength = bufLength;
+  memcpy(&ble_data.indication_queue[ble_data.wptr].buffer, buffer, bufLength);
+
+  ble_data.wptr = nextPtr(ble_data.wptr);
+
+  return false;
+
+} // write_queue()
+
+
+
+// ---------------------------------------------------------------------
+// Public function.
+// This function reads an entry from the queue, and returns values to the
+// caller. The values from the queue entry are returned by writing
+// the values to variables declared by the caller, where the caller is passing
+// in pointers to charHandle, bufLength and buffer. The caller's code will look like this:
+//
+//   uint16_t     charHandle;
+//   uint32_t     bufLength;
+//   uint8_t      buffer[5];
+//
+//   status = read_queue (&charHandle, &bufLength, &buffer[0]);
+//
+// *** If the code above doesn't make sense to you, you probably lack the
+// necessary prerequisite knowledge to be successful in this course.
+//
+// Write the values of charHandle, bufLength, and buffer from my_queue[rptr] to
+// the memory addresses pointed at by charHandle, bufLength and buffer, like this :
+//      *charHandle = <something>;
+//      *bufLength  = <something_else>;
+//      *buffer     = <something_else_again>; // perhaps memcpy() would be useful?
+//
+// In this implementation, we do it this way because
+// standard C does not provide a mechanism for a C function to return multiple
+// values, as is common in perl or python.
+// Returns bool false if successful or true if reading from an empty fifo.
+// i.e. false means no error, true means an error occurred.
+// ---------------------------------------------------------------------
+bool read_queue (uint16_t *charHandle, uint32_t *bufLength, uint8_t *buffer)
+{
+  if(!buffer || !bufLength || !charHandle){
+    return true;
+  }
+
+  if(isEmpty()){
+    return true;
+  }
+
+  *charHandle = ble_data.indication_queue[ble_data.rptr].charHandle;
+  *bufLength = ble_data.indication_queue[ble_data.rptr].bufLength;
+  memcpy(buffer, &ble_data.indication_queue[ble_data.rptr].buffer, ble_data.indication_queue[ble_data.rptr].bufLength);
+
+  ble_data.rptr = nextPtr(ble_data.rptr);
+
+  return false;
+
+} // read_queue()
+
+
+
+// ---------------------------------------------------------------------
+// Public function.
+// This function returns the wptr, rptr, full and empty values, writing
+// to memory using the pointer values passed in, same rationale as read_queue()
+// The "_" characters are used to disambiguate the global variable names from
+// the input parameter names, such that there is no room for the compiler to make a
+// mistake in interpreting your intentions.
+// ---------------------------------------------------------------------
+void get_queue_status (uint32_t *_wptr, uint32_t *_rptr, bool *_full, bool *_empty)
+{
+  if(!_wptr || !_rptr || !_full || !_empty){
+    return;
+  }
+
+  *_wptr = ble_data.wptr;
+  *_rptr = ble_data.rptr;
+  *_full = isFull();
+  *_empty = isEmpty();
+
+} // get_queue_status()
+
+
+
+// ---------------------------------------------------------------------
+// Public function.
+// Function that computes the number of written entries currently in the queue. If there
+// are 3 entries in the queue, it should return 3. If the queue is empty it should
+// return 0. If the queue is full it should return either QUEUE_DEPTH if
+// USE_ALL_ENTRIES==1 otherwise returns QUEUE_DEPTH-1.
+// ---------------------------------------------------------------------
+uint32_t get_queue_depth()
+{
+  if(isEmpty()){       //  EMPTY
+    return 0;
+  } else if (isFull()){   //  FULL
+    return QUEUE_DEPTH-1;
+  } else {                //  PARTIALLY FILLED
+    return (QUEUE_DEPTH + ble_data.wptr - ble_data.rptr) % QUEUE_DEPTH;
+  }
+} // get_queue_depth()

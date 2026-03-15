@@ -30,6 +30,15 @@
 
 #include "em_gpio.h"
 
+#define LED_port   (gpioPortF)
+#define LED0_pin   (4)
+#define LED1_pin   (5)
+
+#define DISPLAY_EXTCOMIN_port (gpioPortD)
+#define DISPLAY_EXTCOMIN_pin  (13)
+
+#define B0_port   (gpioPortF)
+#define B0_pin    (6)
 
 // Function prototypes
 void gpioInit();

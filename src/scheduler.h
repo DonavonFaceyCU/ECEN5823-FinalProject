@@ -20,15 +20,18 @@
 //Functions related to LETIMER0 UF Event
 uint32_t Scheduler_Active_UF();
 void Scheduler_Set_UF();
-void Scheduler_Clear_UF();
 
 uint32_t Scheduler_Active_COMP1();
 void Scheduler_Set_COMP1();
-void Scheduler_Clear_COMP1();
 
 uint32_t Scheduler_Active_TXC();
 void Scheduler_Set_TXC();
-void Scheduler_Clear_TXC();
+
+uint32_t Scheduler_Active_PB0_pressed();
+void Scheduler_Set_PB0_pressed();
+
+uint32_t Scheduler_Active_PB0_released();
+void Scheduler_Set_PB0_released();
 
 void temperature_stateMachine(sl_bt_msg_t *evt);
 void discovery_stateMachine(sl_bt_msg_t *evt);

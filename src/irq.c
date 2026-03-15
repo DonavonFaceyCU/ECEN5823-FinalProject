@@ -136,3 +136,19 @@ void I2C0_IRQHandler(void) {
  LOG_ERROR("%d", transferStatus);
  }
 } // I2C0_IRQHandler()
+
+void GPIO_EVEN_IRQHandler(void)
+{
+  NVIC_DisableIRQ(GPIO_EVEN_IRQn);
+  uint32_t flags = GPIO_IntGet();
+  GPIO_IntClear(flags);
+
+  if (flags & (1 << B0_pin)){
+    if (GPIO_PinInGet(B0_port, B0_pin)){ //Rising Edge - DISABLED
+      Scheduler_Set_PB0_released();
+    } else { //Falling Edge - ENABLED
+      Scheduler_Set_PB0_pressed();
+    }
+  }
+  NVIC_EnableIRQ(GPIO_EVEN_IRQn);
+}

@@ -186,7 +186,7 @@ void temperature_stateMachine(sl_bt_msg_t *evt){
     switch(current_state){
       case S0_IDLE:
         //if UF event is triggered, turn on sensor, wait 82ms
-        if(Scheduler_Active_UF(evt) && connection_established() && indication_allowed()){
+        if(Scheduler_Active_UF(evt) && connection_established() && HTM_indication_allowed()){
           next_state = S1_STARTUP;
 
           i2cEnableSensor();
@@ -237,9 +237,6 @@ void temperature_stateMachine(sl_bt_msg_t *evt){
           UINT32_TO_BITSTREAM(p, temp_11073);
 
           update_temperature_reading(5, htmTempBuffer);
-          if(indication_allowed()){
-              send_temperature_reading(5, htmTempBuffer);
-          }
 
           //i2cDisableSensor();
         }
@@ -280,3 +277,11 @@ void Scheduler_Set_COMP1()                          { Scheduler_Set(EVENT_COMP1)
 #define EVENT_TXC (0x1 << 2)
 uint32_t Scheduler_Active_TXC(sl_bt_msg_t *evt)     { return Scheduler_Active(evt, EVENT_TXC);    }
 void Scheduler_Set_TXC()                            { Scheduler_Set(EVENT_TXC);                   }
+
+#define EVENT_PB0_pressed (0x1 << 3)
+uint32_t Scheduler_Active_PB0_pressed(sl_bt_msg_t *evt)     { return Scheduler_Active(evt, EVENT_PB0_pressed);    }
+void Scheduler_Set_PB0_pressed()                            { Scheduler_Set(EVENT_PB0_pressed);                   }
+
+#define EVENT_PB0_released (0x1 << 4)
+uint32_t Scheduler_Active_PB0_released(sl_bt_msg_t *evt)     { return Scheduler_Active(evt, EVENT_PB0_released);    }
+void Scheduler_Set_PB0_released()                            { Scheduler_Set(EVENT_PB0_released);                   }

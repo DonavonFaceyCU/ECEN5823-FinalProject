@@ -33,7 +33,7 @@
  * Set to 0 to configure as a BLE client
  */
 #define DEVICE_IS_BLE_SERVER 1
-#define ASSIGNMENT_NUMBER 7
+#define ASSIGNMENT_NUMBER 8
 
 // Students:
 // For your Bluetooth Client implementations, starting with A7,
