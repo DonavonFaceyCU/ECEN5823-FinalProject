@@ -200,8 +200,8 @@ void handle_ble_event(sl_bt_msg_t *evt){
       if(Scheduler_Active_PB0_pressed(evt)){
           displayPrintf(DISPLAY_ROW_9, "Button Pressed");
           button_state = 1;
-          sc = sl_bt_gatt_server_write_attribute_value(gattdb_button_state, 0, 1, &button_state);
-          sendIndication(gattdb_button_state, 1, &button_state);
+          sc = sl_bt_gatt_server_write_attribute_value(gattdb_touch_state, 0, 1, &button_state);
+          sendIndication(gattdb_touch_state, 1, &button_state);
           if(ble_data.connected && !ble_data.bonded){
               sl_bt_sm_passkey_confirm(connection_handle,1);
               displayPrintf(DISPLAY_ROW_ACTION, "");
@@ -211,8 +211,8 @@ void handle_ble_event(sl_bt_msg_t *evt){
       if(Scheduler_Active_PB0_released(evt)){
           displayPrintf(DISPLAY_ROW_9, "Button Released");
           button_state = 0;
-          sc = sl_bt_gatt_server_write_attribute_value(gattdb_button_state, 0, 1, &button_state);
-          sendIndication(gattdb_button_state, 1, &button_state);
+          sc = sl_bt_gatt_server_write_attribute_value(gattdb_touch_state, 0, 1, &button_state);
+          sendIndication(gattdb_touch_state, 1, &button_state);
       }
 
       //On Client, this doesn't need to run at all.
@@ -246,7 +246,7 @@ void handle_ble_event(sl_bt_msg_t *evt){
                   gpioLed0SetOff();
                   displayPrintf(DISPLAY_ROW_TEMPVALUE, "");
               }
-          } else if(evt->data.evt_gatt_server_characteristic_status.characteristic == gattdb_button_state){
+          } else if(evt->data.evt_gatt_server_characteristic_status.characteristic == gattdb_touch_state){
               ble_data.Button_indication_enabled = indication_enabled;
               if(indication_enabled){
                   gpioLed1SetOn();
@@ -340,8 +340,8 @@ static void sendIndication(uint16_t characteristic, size_t value_len, uint8_t* v
   }
 
   //Check conditions for sending indications
-  if((charHandle == gattdb_temperature_measurement && ble_data.HTM_indication_enabled) ||
-     (charHandle == gattdb_button_state && ble_data.Button_indication_enabled && ble_data.bonded)){
+  if((charHandle == gattdb_proximity_state && ble_data.HTM_indication_enabled && ble_data.bonded) ||
+     (charHandle == gattdb_touch_state && ble_data.Button_indication_enabled && ble_data.bonded)){
       sc = sl_bt_gatt_server_send_indication(connection_handle, charHandle, bufLength, buffer);
       static uint32_t indications_sent;
       indications_sent++;

@@ -22,6 +22,13 @@
 #define SI7021_ADDR   0x40
 #define SI7021_NO_HOLD_TEMP_READ 0xE0
 
+#define MPR121_ADDR   0x5A
+#define MPR121_TOUCH_STATUS_0_7             0x00
+#define MPR121_TOUCH_STATUS_8_11_PROX       0x01
+#define MPR121_ELECTRODE_CONFIG             0x5E
+#define MPR121_AUTOCONFIG_CR_0              0x7B
+#define MPR121_AUTOCONFIG_CR_1              0x7C
+
 void i2cInit(){
   CMU_ClockEnable(cmuClock_I2C0, true);
 
@@ -48,6 +55,7 @@ void i2cInit(){
   I2C_IntEnable(I2C0, I2C_IEN_TXC);
 }
 
+
 void i2cEnableSensor(){
   //power on sensor enable
   GPIO_PinOutSet(SENSOR_ENABLE_PORT, SENSOR_ENABLE_PIN);
@@ -57,6 +65,7 @@ void i2cEnableSensor(){
   GPIO_PinModeSet(I2C0_SDA_PORT, I2C0_SDA_PIN, gpioModeWiredAndPullUp, 1);
 }
 
+/*
 void i2cDisableSensor(){
   //disable GPIO pins
   GPIO_PinModeSet(I2C0_SCL_PORT, I2C0_SCL_PIN, gpioModeDisabled, 1);
@@ -76,6 +85,7 @@ I2C_TransferSeq_TypeDef BlockingTransferSequence = {
     .buf[0] = {.data = blockingTransmitBuffer, .len = BLOCKING_TRANSMIT_LENGTH},
     .buf[1] = {.data = blockingReceiveBuffer, .len = BLOCKING_RECEIVE_LENGTH}
 };
+
 
 void i2cReadTemperature_blocking(){
   //power on sensor enable
@@ -157,5 +167,5 @@ uint32_t i2cReadTemperature_nonblocking_finish(){
   sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
   return temperature_11073;
 }
-
+*/
 

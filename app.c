@@ -228,7 +228,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
 #if DEVICE_IS_BLE_SERVER
 
 
-  temperature_stateMachine(evt);        // put this code in scheduler.c/.h
+  //temperature_stateMachine(evt);        // put this code in scheduler.c/.h
 
 #else
 

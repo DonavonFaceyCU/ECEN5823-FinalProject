@@ -252,8 +252,6 @@ void displayInit()
 
     i2cEnableSensor();
 
-
-
     // Init the dot matrix display data structure
     display->dmdInitConfig = 0;
     //status = DMD_init(&display->dmdInitConfig);

@@ -139,19 +139,41 @@ When used with the Measurement Interval characteristic, the Valid Range descript
     </characteristic>
   </service>
 
-  <!--ECEN5823 Encryption Test-->
-  <service advertise="true" name="ECEN5823 Encryption Test" requirement="mandatory" sourceId="" type="primary" uuid="00000001-38c8-433e-87ec-652a2d136289">
+  <!--MPR121 Touch Sensor-->
+  <service advertise="true" name="MPR121 Touch Sensor" requirement="mandatory" sourceId="" type="primary" uuid="322693ed-dd62-4274-a7cc-453957e8530c">
 
-    <!--ECEN5823 Encrypted Button Test-->
-    <characteristic const="false" id="button_state" name="ECEN5823 Encrypted Button Test" sourceId="" uuid="00000002-38c8-433e-87ec-652a2d136289">
-      <value length="0" type="hex" variable_length="false">00</value>
+    <!--MPR121 Touch Sensor - Touch State-->
+    <characteristic const="false" id="touch_state" name="MPR121 Touch Sensor - Touch State" sourceId="" uuid="322693ee-dd62-4274-a7cc-453957e8530c">
+      <value length="2" type="hex" variable_length="false">0000</value>
       <properties>
         <read authenticated="false" bonded="true" encrypted="false"/>
         <indicate authenticated="false" bonded="true" encrypted="false"/>
       </properties>
 
       <!--Characteristic Descriptor-->
-      <descriptor const="false" discoverable="true" id="client_characteristic_descriptor4" name="Characteristic Descriptor" sourceId="" uuid="2902">
+      <descriptor const="false" discoverable="true" id="touch_client_characteristic_descriptor" name="Characteristic Descriptor" sourceId="" uuid="2902">
+        <properties>
+          <read authenticated="false" bonded="false" encrypted="false"/>
+          <write authenticated="false" bonded="false" encrypted="false"/>
+        </properties>
+        <value length="2" type="hex" variable_length="false">00</value>
+      </descriptor>
+    </characteristic>
+  </service>
+
+  <!--MPR121 Proximity Sensor-->
+  <service advertise="true" name="MPR121 Proximity Sensor" requirement="mandatory" sourceId="" type="primary" uuid="1b9e4f3c-7945-41ff-b52c-ad92a9a58a35">
+
+    <!--MPR121 Proximity Sensor - Proximity State-->
+    <characteristic const="false" id="proximity_state" name="MPR121 Proximity Sensor - Proximity State" sourceId="" uuid="1b9e4f3d-7945-41ff-b52c-ad92a9a58a35">
+      <value length="1" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="true" encrypted="false"/>
+        <indicate authenticated="false" bonded="true" encrypted="false"/>
+      </properties>
+
+      <!--Characteristic Descriptor-->
+      <descriptor const="false" discoverable="true" id="proximity_client_characteristic_descriptor" name="Characteristic Descriptor" sourceId="" uuid="2902">
         <properties>
           <read authenticated="false" bonded="false" encrypted="false"/>
           <write authenticated="false" bonded="false" encrypted="false"/>
