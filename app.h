@@ -38,19 +38,12 @@
  *
  ******************************************************************************/
 
-// Students: Remember, a header file (a .h file) defines an interface
-//           for functions defined within an implementation file (a .c file).
-//           The .h file defines what a caller (a user) of a .c file requires.
-//           At a minimum, the .h file should define the publicly callable
-//           functions, i.e. define the function prototypes. #define and type
-//           definitions can be added if the caller requires theses.
-
 #ifndef APP_H
 #define APP_H
 
 // Only define 1 of these to define the lowest energy mode
 // 0 = highest energy mode, 3 = lowest energy mode
-#define LOWEST_ENERGY_MODE 2
+#define LOWEST_ENERGY_MODE 1
 
 #ifndef LOWEST_ENERGY_MODE
 #error "Define LOWEST_ENERGY_MODE"
@@ -63,10 +56,6 @@
 //   Return true to allow system to sleep when you expect/want an IRQ to wake
 //   up the MCU from the call to sl_power_manager_sleep() in the main while (1)
 //   loop.
-//
-// Students: We'll need to modify this for A2 onward so that compile time we
-//           control what the lowest EM (energy mode) the MCU sleeps to. So
-//           think "#if (expression)".
 
 #if LOWEST_ENERGY_MODE == 0
 #define APP_IS_OK_TO_SLEEP      (false)

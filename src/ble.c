@@ -74,16 +74,12 @@ void handle_ble_event(sl_bt_msg_t *evt){
 
       //Handle Display aspects first
       displayInit();
+      sensor_init();
       displayPrintf(DISPLAY_ROW_ASSIGNMENT, "A%u", assignmentNumber);
-#if DEVICE_IS_BLE_SERVER
       displayPrintf(DISPLAY_ROW_NAME, "Server");
       displayPrintf(DISPLAY_ROW_CONNECTION, "Advertising");
       displayPrintf(DISPLAY_ROW_9, "Button Released");
-#else //DEVICE_IS_BLE_CLIENT
-      displayPrintf(DISPLAY_ROW_NAME, "Client");
-      displayPrintf(DISPLAY_ROW_CONNECTION, "Discovering");
-#endif
-      sl_bt_sm_delete_bondings();
+      //sl_bt_sm_delete_bondings();
       sl_bt_sm_set_bondable_mode(1);
       sl_bt_sm_configure(SL_BT_SM_CONFIGURATION_MITM_REQUIRED | SL_BT_SM_CONFIGURATION_BONDING_REQUEST_REQUIRED | SL_BT_SM_CONFIGURATION_PREFER_MITM, sm_io_capability_displayyesno);
 
@@ -100,7 +96,6 @@ void handle_ble_event(sl_bt_msg_t *evt){
                     ble_data.myAddress.addr[5]);
 
       //Handle BLE advertising / discovery initialization here
-#if DEVICE_IS_BLE_SERVER
       // Extract unique ID from BT Address.
       sc = sl_bt_system_get_identity_address(&ble_data.myAddress, sl_bt_gap_public_address);
 
@@ -122,22 +117,10 @@ void handle_ble_event(sl_bt_msg_t *evt){
       sc = sl_bt_legacy_advertiser_start(advertising_set_handle, sl_bt_advertiser_connectable_scannable);
 
       if(sc != SL_STATUS_OK){
-          LOG_ERROR("BT STACK BOOTUP");
+          //LOG_ERROR("BT STACK BOOTUP");
       }
-#else //DEVICE_IS_BLE_CLIENT
-      sl_bt_scanner_set_parameters(sl_bt_scanner_scan_mode_passive, 0x0010, 0x0010);
-      sl_bt_connection_set_default_parameters(CONNECTION_INTERVAL_MIN,
-                                              CONNECTION_INTERVAL_MAX,
-                                              CONNECTION_SLAVE_LATENCY,
-                                              CONNECTION_SUPERVISION_TIMEOUT,
-                                              CONNECTION_EVENT_LENGTH_MIN,
-                                              CONNECTION_EVENT_LENGTH_MAX);
-      sl_bt_scanner_start(sl_bt_scanner_scan_phy_1m, sl_bt_scanner_discover_observation);
-      displayPrintf(DISPLAY_ROW_CONNECTION, "Discovering");
-#endif
       break;
 
-#if DEVICE_IS_BLE_SERVER
     case sl_bt_evt_connection_opened_id:
       connection_handle = evt->data.evt_connection_opened.connection;
       sc = sl_bt_advertiser_stop(advertising_set_handle);
@@ -150,28 +133,24 @@ void handle_ble_event(sl_bt_msg_t *evt){
                                       CONNECTION_EVENT_LENGTH_MAX);
 
       if(sc != SL_STATUS_OK){
-          LOG_ERROR("BT STACK CONNECTION OPENED");
+          //LOG_ERROR("BT STACK CONNECTION OPENED");
       }
-#else //DEVICE_IS_BLE_CLIENT
-      displayPrintf(DISPLAY_ROW_BTADDR2, "%x:%x:%x:%x:%x:%x",
-                    evt->data.evt_connection_opened.address.addr[0],
-                    evt->data.evt_connection_opened.address.addr[1],
-                    evt->data.evt_connection_opened.address.addr[2],
-                    evt->data.evt_connection_opened.address.addr[3],
-                    evt->data.evt_connection_opened.address.addr[4],
-                    evt->data.evt_connection_opened.address.addr[5]);
-#endif
-      displayPrintf(DISPLAY_ROW_CONNECTION, "Connected");
+
       ble_data.connected = true;
+
+      if(evt->data.evt_connection_opened.bonding){
+          displayPrintf(DISPLAY_ROW_CONNECTION, "Bonded");
+      } else {
+          displayPrintf(DISPLAY_ROW_CONNECTION, "Connected");
+      }
+      sl_bt_sm_increase_security(connection_handle);
       break;
 
     case sl_bt_evt_connection_closed_id:
-#if DEVICE_IS_BLE_SERVER
       sc = sl_bt_legacy_advertiser_start(advertising_set_handle, sl_bt_advertiser_connectable_scannable);
       displayPrintf(DISPLAY_ROW_CONNECTION, "Advertising");
-      displayPrintf(DISPLAY_ROW_TEMPVALUE, "");
-#else //DEVICE_IS_BLE_CLIENT
-#endif
+      displayPrintf(DISPLAY_ROW_TOUCH_VALUE, "");
+      displayPrintf(DISPLAY_ROW_PROXIMITY_VALUE, "");
 
       if(sc != SL_STATUS_OK){
           //LOG_ERROR("BT STACK CONNECTION CLOSED");
@@ -182,19 +161,15 @@ void handle_ble_event(sl_bt_msg_t *evt){
       ble_data.Button_indication_enabled = false;
       gpioLed0SetOff();
       gpioLed1SetOff();
-      sl_bt_sm_delete_bondings();
+      //sl_bt_sm_delete_bondings();
       break;
 
-    /*
     case sl_bt_evt_connection_parameters_id:
-      LOG_INFO("Connection Parameters Updated:\n");
-      LOG_INFO("  Interval: %.2f ms\n", evt->data.evt_connection_parameters.interval * 1.25f);
-      LOG_INFO("  Latency : %u\n", evt->data.evt_connection_parameters.latency);
-      LOG_INFO("  Timeout : %.0f ms\n", evt->data.evt_connection_parameters.timeout * 10.0f);
+      if(evt->data.evt_connection_parameters.security_mode > sl_bt_connection_mode1_level1){
+          displayPrintf(DISPLAY_ROW_CONNECTION, "Bonded");
+      }
       break;
-    */
 
-#if DEVICE_IS_BLE_SERVER
     case sl_bt_evt_system_external_signal_id:
       //On Server, handle PB0 presses
       if(Scheduler_Active_PB0_pressed(evt)){
@@ -217,14 +192,14 @@ void handle_ble_event(sl_bt_msg_t *evt){
 
       //On Client, this doesn't need to run at all.
       break;
-#endif
 
     case sl_bt_evt_system_soft_timer_id:
-      displayUpdate();
+      if(evt->data.evt_system_soft_timer.handle == SOFT_TIMER_HANDLE_LCD){
+          displayUpdate();
+      }
       break;
 
 //Events exclusive to Server
-#if DEVICE_IS_BLE_SERVER
     case sl_bt_evt_gatt_server_characteristic_status_id:
       //client config changed
       if (evt->data.evt_gatt_server_characteristic_status.status_flags == sl_bt_gatt_server_client_config) {
@@ -244,7 +219,8 @@ void handle_ble_event(sl_bt_msg_t *evt){
                   LETIMER_IntSet(LETIMER0, LETIMER_IF_UF); //Trigger an UF event to guarantee a temperature measurement is taken after indications are enabled
               } else {
                   gpioLed0SetOff();
-                  displayPrintf(DISPLAY_ROW_TEMPVALUE, "");
+                  displayPrintf(DISPLAY_ROW_TOUCH_VALUE, "");
+                  displayPrintf(DISPLAY_ROW_PROXIMITY_VALUE, "");
               }
           } else if(evt->data.evt_gatt_server_characteristic_status.characteristic == gattdb_touch_state){
               ble_data.Button_indication_enabled = indication_enabled;
@@ -269,6 +245,9 @@ void handle_ble_event(sl_bt_msg_t *evt){
       //LOG_ERROR("Indication Timed Out");
       break;
 
+    case sl_bt_evt_sm_bonding_failed_id:
+      sl_bt_sm_delete_bondings();
+      break;
     case sl_bt_evt_sm_confirm_bonding_id:
       sl_bt_sm_bonding_confirm(connection_handle, 1);
       break;
@@ -276,32 +255,9 @@ void handle_ble_event(sl_bt_msg_t *evt){
       displayPrintf(DISPLAY_ROW_ACTION, "Confirm with PB0");
       displayPrintf(DISPLAY_ROW_PASSKEY, "Passkey: %06u", evt->data.evt_sm_confirm_passkey.passkey);
       break;
-    case sl_bt_evt_sm_bonding_failed_id:
-      break;
     case sl_bt_evt_sm_bonded_id:
-      displayPrintf(DISPLAY_ROW_CONNECTION, "Bonded");
       ble_data.bonded = true;
       break;
-
-//Events exclusive to Client
-#else //DEVICE_IS_BLE_CLIENT
-    case sl_bt_evt_scanner_scan_report_id:
-      //Handled by Discovery State Machine
-      break;
-    case sl_bt_evt_gatt_procedure_completed_id:
-      //Handled by Discovery State Machine
-      break;
-    case sl_bt_evt_gatt_service_id:
-      //Handled by Discovery State Machine
-      break;
-    case sl_bt_evt_gatt_characteristic_id:
-      //Handled by Discovery State Machine
-      break;
-    case sl_bt_evt_gatt_characteristic_value_id:
-      //Handled by Discovery State Machine
-      break;
-#endif
-
 
     default: //do nothing
       break;
@@ -351,25 +307,25 @@ static void sendIndication(uint16_t characteristic, size_t value_len, uint8_t* v
   }
 
   if(sc != SL_STATUS_OK){
-      LOG_ERROR("Sending Indication Error");
+      //LOG_ERROR("Sending Indication Error");
   }
 }
 
-void update_temperature_reading(size_t value_len, uint8_t* value){
-  sl_status_t sc = sl_bt_gatt_server_write_attribute_value(gattdb_temperature_measurement, 0, value_len, value);
+void update_sensor_reading(uint16_t touch_value, uint8_t proximity_value){
+  sl_status_t sc;
+  sc = sl_bt_gatt_server_write_attribute_value(gattdb_touch_state, 0, 2, (uint8_t*) &touch_value);
+  sc = sl_bt_gatt_server_write_attribute_value(gattdb_proximity_state, 0, 1, &proximity_value);
 
-  sendIndication(gattdb_temperature_measurement, value_len, value);
+  sendIndication(gattdb_touch_state, 2, (uint8_t*) &touch_value);
+  sendIndication(gattdb_proximity_state, 1, &proximity_value);
 
   if(sc != SL_STATUS_OK){
       //LOG_ERROR("BT STACK INDICATION SEND");
   }
 
-  int32_t temperature = FLOAT_TO_INT32(value);
-  uint16_t temp_wholeDigits = (temperature & 0xFFFF0000) >> 16;
-  uint16_t temp_tenthDigits = (temperature & 0x0000FFFF) >> 0;
-
   if(ble_data.HTM_indication_enabled){
-      displayPrintf(DISPLAY_ROW_TEMPVALUE, "Temp = %i.%i Celsius", temp_wholeDigits, temp_tenthDigits);
+      displayPrintf(DISPLAY_ROW_TOUCH_VALUE, "Touch = 0x%03X\n", touch_value);
+      displayPrintf(DISPLAY_ROW_PROXIMITY_VALUE, "Touch = 0x%01X\n", proximity_value);
   }
 }
 

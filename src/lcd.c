@@ -75,7 +75,6 @@
 
 #define SOFT_TIMER_PERIOD   (32768)
 #define SOFT_TIMER_SLACK    (20)
-#define SOFT_TIMER_HANDLE   (0xD3)
 
 
 
@@ -306,7 +305,7 @@ void displayInit()
     //           set up a 1 second repeating soft timer and uncomment the following lines
 
 	  sl_status_t          timer_response;
-	  timer_response = sl_bt_system_set_lazy_soft_timer(SOFT_TIMER_PERIOD, SOFT_TIMER_SLACK, SOFT_TIMER_HANDLE, false);
+	  timer_response = sl_bt_system_set_lazy_soft_timer(SOFT_TIMER_PERIOD, SOFT_TIMER_SLACK, SOFT_TIMER_HANDLE_LCD, false);
 	  if (timer_response != SL_STATUS_OK) {
 	      LOG_ERROR("SOFT_TIMER_INIT");
     }

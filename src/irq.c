@@ -133,7 +133,7 @@ void I2C0_IRQHandler(void) {
    Scheduler_Set_TXC();
  }
  if (transferStatus < 0) {
- LOG_ERROR("%d", transferStatus);
+ //LOG_ERROR("%d", transferStatus);
  }
 } // I2C0_IRQHandler()
 

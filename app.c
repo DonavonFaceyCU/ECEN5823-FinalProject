@@ -45,14 +45,6 @@
 #include "sl_bluetooth.h"
 #include "gatt_db.h"
 #include "app.h"
-
-
-// *************************************************
-// Students: It is OK to modify this file.
-//           Make edits appropriate for each
-//           assignment.
-// *************************************************
-
 #include "sl_status.h"             // for sl_status_print()
 
 #include "src/ble_device_type.h"
@@ -63,19 +55,9 @@
 #include "src/i2c.h"
 #include "src/ble.h"
 
-// Students: Here is an example of how to correctly include logging functions in
-//           each .c file.
-//           Apply this technique to your other .c files.
-//           Do not #include "src/log.h" in any .h file! This logging scheme is
-//           designed to be included at the top of each .c file that you want
-//           to call one of the LOG_***() functions from.
-
 // Include logging specifically for this .c file
 #define INCLUDE_LOG_DEBUG 1
 #include "src/log.h"
-
-
-
 
 // *************************************************
 // Power Manager
@@ -135,9 +117,6 @@ sl_power_manager_on_isr_exit_t app_sleep_on_isr_exit(void)
 
 #endif // defined(SL_CATALOG_POWER_MANAGER_PRESENT)
 
-
-
-
 /**************************************************************************//**
  * Application Init.
  *****************************************************************************/
@@ -158,49 +137,16 @@ SL_WEAK void app_init(void)
 
   i2cInit();
 
-  //LOG_INFO("Startup Complete");
+  LOG_INFO("Startup Complete");
 
 } // app_init()
-
 
 /**************************************************************************//**
  * Application Process Action.
  *****************************************************************************/
 SL_WEAK void app_process_action(void)
 {
-  // Put your application code here for A1 to A4.
-  // This is called repeatedly from the main while(1) loop
-  // Notice: This function is not passed or has access to Bluetooth stack events.
-  //         We will create/use a scheme that is far more energy efficient in
-  //         later assignments.
-
-
-  //i2c_stateMachine();
-
-  /*
-  static bool temp;
-
-  if(Scheduler_Active_COMP1()){
-    Scheduler_Clear_COMP1();
-    temp = !temp;
-
-    if(temp){
-      gpioLed0SetOn();
-      timerWaitUs(10000);
-    } else {
-      gpioLed0SetOff();
-      timerWaitUs(20000);
-    }
-  }
-  */
-
-
-
 } // app_process_action()
-
-
-
-
 
 /**************************************************************************//**
  * Bluetooth stack event handler.
@@ -212,28 +158,12 @@ SL_WEAK void app_process_action(void)
  * opportunity we will get to act on an event.
  *
  *****************************************************************************/
+uint32_t event_id;
 void sl_bt_on_event(sl_bt_msg_t *evt)
 {
+  event_id = SL_BT_MSG_ID(evt->header);
 
-  // Just a trick to hide a compiler warning about unused input parameter evt.
-  (void) evt;
-
-  // For A5 onward:
-  // Some events require responses from our application code,
-  // and don’t necessarily advance our state machines.
-  // For A5 uncomment the next 2 function calls
-  handle_ble_event(evt); // put this code in ble.c/.h
-
-  // sequence through states driven by events
-#if DEVICE_IS_BLE_SERVER
-
-
-  //temperature_stateMachine(evt);        // put this code in scheduler.c/.h
-
-#else
-
-  discovery_stateMachine(evt);     // put this code in scheduler.c/.h
-
-#endif
+  handle_ble_event(evt);
+  sensor_stateMachine(evt);
 } // sl_bt_on_event()
 

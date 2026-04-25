@@ -39,7 +39,7 @@ void Scheduler_Set_ButtonState_ToggleIndication();
 uint32_t Scheduler_Active_ButtonState_Read();
 void Scheduler_Set_ButtonState_Read();
 
-void temperature_stateMachine(sl_bt_msg_t *evt);
-void discovery_stateMachine(sl_bt_msg_t *evt);
+void sensor_stateMachine(sl_bt_msg_t *evt);
+void sensor_init();
 
 #endif /* SRC_SCHEDULER_H_ */

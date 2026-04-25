@@ -22,12 +22,48 @@
 #define SI7021_ADDR   0x40
 #define SI7021_NO_HOLD_TEMP_READ 0xE0
 
-#define MPR121_ADDR   0x5A
+#define MPR121_ADDR                         0x5A
 #define MPR121_TOUCH_STATUS_0_7             0x00
 #define MPR121_TOUCH_STATUS_8_11_PROX       0x01
+#define MPR121_MHD_RISING                   0x2B
+#define MPR121_NHD_RISING                   0x2C
+#define MPR121_NCL_RISING                   0x2D
+#define MPR121_FDL_RISING                   0x2E
+#define MPR121_MHD_FALLING                  0x2F
+#define MPR121_NHD_FALLING                  0x30
+#define MPR121_NCL_FALLING                  0x31
+#define MPR121_FDL_FALLING                  0x32
+#define MPR121_NHD_TOUCHED                  0x33
+#define MPR121_NCL_TOUCHED                  0x34
+#define MPR121_FDL_TOUCHED                  0x35
+#define MPR121_ELE0_TOUCH_THRESHOLD         0x41
+#define MPR121_ELE0_RELEASE_THRESHOLD       0x42
+#define MPR121_DEBOUNCE                     0x5B
+#define MPR121_CDC_CONFIG                   0x5C
+#define MPR121_CDT_CONFIG                   0x5D
 #define MPR121_ELECTRODE_CONFIG             0x5E
 #define MPR121_AUTOCONFIG_CR_0              0x7B
 #define MPR121_AUTOCONFIG_CR_1              0x7C
+#define MPR121_AUTOCONFIG_USL               0x7D
+#define MPR121_AUTOCONFIG_LSL               0x7E
+#define MPR121_AUTOCONFIG_TARGET            0x7F
+#define MPR121_SOFT_RESET                   0x80
+
+static I2C_TransferReturn_TypeDef MPR121_write_blocking(uint8_t reg, uint8_t val){
+    uint8_t tx[2] = { reg, val };
+
+    I2C_TransferSeq_TypeDef seq = {
+        .addr  = MPR121_ADDR << 1,
+        .flags = I2C_FLAG_WRITE,
+        .buf[0] = { .data = tx, .len = sizeof(tx) },
+    };
+
+    I2C_TransferReturn_TypeDef ret = I2C_TransferInit(I2C0, &seq);
+    while (ret == i2cTransferInProgress) {
+        ret = I2C_Transfer(I2C0);          /* poll until done */
+    }
+    return ret;
+}
 
 void i2cInit(){
   CMU_ClockEnable(cmuClock_I2C0, true);
@@ -55,6 +91,65 @@ void i2cInit(){
   I2C_IntEnable(I2C0, I2C_IEN_TXC);
 }
 
+void i2c_sensor_init(){
+    MPR121_write_blocking(MPR121_SOFT_RESET, 0x63);
+    timerWaitUs_polled(1000);
+    MPR121_write_blocking(MPR121_ELECTRODE_CONFIG, 0x00);
+
+    //Default values taken from AN3891
+    MPR121_write_blocking(MPR121_MHD_RISING,   0x01);
+    MPR121_write_blocking(MPR121_NHD_RISING,   0x01);
+    MPR121_write_blocking(MPR121_NCL_RISING,   0x00);
+    MPR121_write_blocking(MPR121_FDL_RISING,   0x00);
+    MPR121_write_blocking(MPR121_MHD_FALLING,  0x01);
+    MPR121_write_blocking(MPR121_NHD_FALLING,  0x01);
+    MPR121_write_blocking(MPR121_NCL_FALLING,  0xFF);
+    MPR121_write_blocking(MPR121_FDL_FALLING,  0x02);
+    MPR121_write_blocking(MPR121_NHD_TOUCHED,  0x00);
+    MPR121_write_blocking(MPR121_NCL_TOUCHED,  0x00);
+    MPR121_write_blocking(MPR121_FDL_TOUCHED,  0x00);
+
+    for (uint8_t i = 0; i < 12; i++) {
+        MPR121_write_blocking(MPR121_ELE0_TOUCH_THRESHOLD   + (i * 2), 0x0F);
+        MPR121_write_blocking(MPR121_ELE0_RELEASE_THRESHOLD + (i * 2), 0x0A);
+    }
+
+    MPR121_write_blocking(MPR121_CDC_CONFIG, 0x10);
+    MPR121_write_blocking(MPR121_CDT_CONFIG, 0x20);
+    MPR121_write_blocking(MPR121_DEBOUNCE,   0x00);
+    MPR121_write_blocking(MPR121_AUTOCONFIG_CR_0,    0x0B);
+    MPR121_write_blocking(MPR121_AUTOCONFIG_CR_1,    0x80);
+    MPR121_write_blocking(MPR121_AUTOCONFIG_USL,     201);
+    MPR121_write_blocking(MPR121_AUTOCONFIG_LSL,     130);
+    MPR121_write_blocking(MPR121_AUTOCONFIG_TARGET,  181);
+    MPR121_write_blocking(MPR121_ELECTRODE_CONFIG, 0x8C);
+}
+
+#define TOUCH_STATUS_LENGTH      2
+//static uint8_t touchStatusRegAddr = MPR121_CDC_CONFIG;
+static uint8_t touchStatusRegAddr = MPR121_TOUCH_STATUS_0_7;
+static uint8_t touchStatusBuffer[TOUCH_STATUS_LENGTH];
+
+I2C_TransferSeq_TypeDef ReadingTransferSequence = {
+    .addr  = MPR121_ADDR << 1,
+    .flags = I2C_FLAG_WRITE_READ,
+    .buf[0] = { .data = &touchStatusRegAddr, .len = 1                   },
+    .buf[1] = { .data = touchStatusBuffer,   .len = TOUCH_STATUS_LENGTH },
+};
+
+void sensor_startRead(){
+  I2C_TransferInit (I2C0, &ReadingTransferSequence);
+  NVIC_EnableIRQ(I2C0_IRQn);
+}
+
+void sensor_finishRead(uint16_t* touch_value, uint8_t* proximity_value){
+  NVIC_DisableIRQ(I2C0_IRQn);
+
+  uint16_t compound_register = (touchStatusBuffer[0] | touchStatusBuffer[1] << 8);
+
+  *touch_value = compound_register & 0xFFF;
+  *proximity_value = compound_register << 13;
+}
 
 void i2cEnableSensor(){
   //power on sensor enable
@@ -64,108 +159,4 @@ void i2cEnableSensor(){
   GPIO_PinModeSet(I2C0_SCL_PORT, I2C0_SCL_PIN, gpioModeWiredAndPullUp, 1);
   GPIO_PinModeSet(I2C0_SDA_PORT, I2C0_SDA_PIN, gpioModeWiredAndPullUp, 1);
 }
-
-/*
-void i2cDisableSensor(){
-  //disable GPIO pins
-  GPIO_PinModeSet(I2C0_SCL_PORT, I2C0_SCL_PIN, gpioModeDisabled, 1);
-  GPIO_PinModeSet(I2C0_SDA_PORT, I2C0_SDA_PIN, gpioModeDisabled, 1);
-
-  //turn off sensor enable
-  GPIO_PinOutClear(SENSOR_ENABLE_PORT, SENSOR_ENABLE_PIN);
-}
-
-#define BLOCKING_RECEIVE_LENGTH 2
-#define BLOCKING_TRANSMIT_LENGTH 1
-static uint8_t blockingReceiveBuffer[BLOCKING_RECEIVE_LENGTH] = {0,0};
-static uint8_t blockingTransmitBuffer[BLOCKING_TRANSMIT_LENGTH] = {0xE3}; //Hold Master Mode Read Temperature Command
-I2C_TransferSeq_TypeDef BlockingTransferSequence = {
-    .addr = SI7021_ADDR << 1,
-    .flags = I2C_FLAG_WRITE,
-    .buf[0] = {.data = blockingTransmitBuffer, .len = BLOCKING_TRANSMIT_LENGTH},
-    .buf[1] = {.data = blockingReceiveBuffer, .len = BLOCKING_RECEIVE_LENGTH}
-};
-
-
-void i2cReadTemperature_blocking(){
-  //power on sensor enable
-  GPIO_PinOutSet(SENSOR_ENABLE_PORT, SENSOR_ENABLE_PIN);
-
-  //enable GPIO pins
-  GPIO_PinModeSet(I2C0_SCL_PORT, I2C0_SCL_PIN, gpioModeWiredAndPullUp, 1);
-  GPIO_PinModeSet(I2C0_SDA_PORT, I2C0_SDA_PIN, gpioModeWiredAndPullUp, 1);
-
-  //wait for power to come up
-  timerWaitUs_polled(80000);
-
-  //send temperature command
-  uint8_t transferReturn = I2CSPM_Transfer(I2C0, &BlockingTransferSequence);
-  if(transferReturn != i2cTransferDone){
-      LOG_ERROR("I2C Transfer Failed with code:%u", transferReturn);
-  }
-
-  //wait for temperature to be read
-  //timerWaitUs_polled(10800);
-
-  //read temperature
-  //Done in above transfer
-
-  //disable GPIO pins
-  GPIO_PinModeSet(I2C0_SCL_PORT, I2C0_SCL_PIN, gpioModeDisabled, 1);
-  GPIO_PinModeSet(I2C0_SDA_PORT, I2C0_SDA_PIN, gpioModeDisabled, 1);
-
-  //turn off sensor enable
-  GPIO_PinOutClear(SENSOR_ENABLE_PORT, SENSOR_ENABLE_PIN);
-
-  uint16_t temp_code = blockingReceiveBuffer[1] | (blockingReceiveBuffer[0] << 8);
-  float temperature = 175.72f * (temp_code >> 16) - 46.85;
-  LOG_INFO("Logged Measurement: %.0f Degrees Celsius", temperature);
-}
-
-#define COMMAND_TRANSMIT_LENGTH 1
-static uint8_t commandTransmitBuffer[BLOCKING_TRANSMIT_LENGTH] = {0xF3}; //No Hold Master Mode Read Temperature Command
-I2C_TransferSeq_TypeDef CommandTransferSequence = {
-    .addr = SI7021_ADDR << 1,
-    .flags = I2C_FLAG_WRITE,
-    .buf[0] = {.data = commandTransmitBuffer, .len = COMMAND_TRANSMIT_LENGTH},
-};
-
-void i2cCommandTemperatureReading(){
-  sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
-  I2C_TransferReturn_TypeDef transferStatus;
-  transferStatus = I2C_TransferInit (I2C0, &CommandTransferSequence);
-  if (transferStatus < 0) {
-    LOG_ERROR("I2C_TransferInit() Write error = %d", transferStatus);
-  }
-}
-
-#define READING_RECEIVE_LENGTH 2
-static uint8_t readingReceiveBuffer[READING_RECEIVE_LENGTH] = {0xAB, 0xCD}; //No Hold Master Mode Read Temperature Command
-I2C_TransferSeq_TypeDef ReadingTransferSequence = {
-    .addr = SI7021_ADDR << 1,
-    .flags = I2C_FLAG_READ,
-    .buf[0] = {.data = readingReceiveBuffer, .len = READING_RECEIVE_LENGTH},
-};
-
-void i2cReadTemperature_nonblocking_start(){
-  I2C_TransferReturn_TypeDef transferStatus;
-  transferStatus = I2C_TransferInit (I2C0, &ReadingTransferSequence);
-  if (transferStatus < 0) {
-    LOG_ERROR("I2C_TransferInit() Read error = %d", transferStatus);
-  }
-}
-
-uint32_t i2cReadTemperature_nonblocking_finish(){
-  uint16_t temp_code = readingReceiveBuffer[1] | (readingReceiveBuffer[0] << 8);
-  //uint32_t temperature = 175720 * temp_code / 65536 - 46850;
-  //uint32_t temperature_11073 = ((uint32_t)(uint8_t)(-3) << 24) | ((temperature & 0x00FFFFFF) << 0);
-
-  uint32_t temperature = 1760 * temp_code / 65536 - 470;
-  uint32_t temperature_11073 = ((uint32_t)(uint8_t)(-1) << 24) | ((temperature & 0x00FFFFFF) << 0);
-  //LOG_INFO("Logged Measurement: %u Degrees Celsius", temperature);
-
-  sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
-  return temperature_11073;
-}
-*/
 

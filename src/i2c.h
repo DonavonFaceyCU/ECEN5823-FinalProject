@@ -17,14 +17,12 @@
 #include "lcd.h"
 
 void i2cInit();
-void i2cReadTemperature_blocking();
+void i2c_sensor_init();
 
-void i2cReadTemperature_nonblocking_start();
-uint32_t i2cReadTemperature_nonblocking_finish();
+void sensor_startRead();
+void sensor_finishRead(uint16_t* touch_value, uint8_t* proximity_value);
 
 void i2cEnableSensor();
 void i2cDisableSensor();
-
-void i2cCommandTemperatureReading();
 
 #endif /* SRC_I2C_H_ */

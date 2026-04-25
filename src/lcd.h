@@ -44,25 +44,26 @@
  * assignment requirements. See assignment text for details.
  */
 enum display_row {
-	DISPLAY_ROW_NAME,          // 0
-	DISPLAY_ROW_BTADDR,        // 1
-	DISPLAY_ROW_BTADDR2,       // 2
-	DISPLAY_ROW_CLIENTADDR,    // 3
-	DISPLAY_ROW_CONNECTION,    // 4
-	DISPLAY_ROW_PASSKEY,       // 5
-	DISPLAY_ROW_ACTION,        // 6
-	DISPLAY_ROW_TEMPVALUE,     // 7
-	DISPLAY_ROW_8,             // 8
-	DISPLAY_ROW_9,             // 9
-	DISPLAY_ROW_10,            // 10
-	DISPLAY_ROW_11,            // 11
-	DISPLAY_ROW_ASSIGNMENT,    // 12
-	DISPLAY_NUMBER_OF_ROWS     // 13
+	DISPLAY_ROW_NAME,               // 0
+	DISPLAY_ROW_BTADDR,             // 1
+	DISPLAY_ROW_BTADDR2,            // 2
+	DISPLAY_ROW_CLIENTADDR,         // 3
+	DISPLAY_ROW_CONNECTION,         // 4
+	DISPLAY_ROW_PASSKEY,            // 5
+	DISPLAY_ROW_ACTION,             // 6
+	DISPLAY_ROW_TOUCH_VALUE,        // 7
+	DISPLAY_ROW_PROXIMITY_VALUE,    // 8
+	DISPLAY_ROW_9,                  // 9
+	DISPLAY_ROW_10,                 // 10
+	DISPLAY_ROW_11,                 // 11
+	DISPLAY_ROW_ASSIGNMENT,         // 12
+	DISPLAY_NUMBER_OF_ROWS          // 13
 };
 
 // The number of characters per row
 #define DISPLAY_ROW_LEN      20
 
+#define SOFT_TIMER_HANDLE_LCD   (0xD3)
 
 
 // function prototypes

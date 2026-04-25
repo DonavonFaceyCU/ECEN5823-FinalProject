@@ -23,7 +23,7 @@ int32_t FLOAT_TO_INT32(const uint8_t *buffer_ptr);
 
 void handle_ble_event(sl_bt_msg_t *evt);
 
-void update_temperature_reading(size_t value_len, uint8_t* value);
+void update_sensor_reading(uint16_t touch_value, uint8_t proximity_value);
 
 bool HTM_indication_allowed();
 bool connection_established();
