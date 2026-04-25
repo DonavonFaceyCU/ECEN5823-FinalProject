@@ -33,9 +33,6 @@ void sensor_stateMachine(sl_bt_msg_t *evt){
       uint8_t proximity_value = -1;
 
       sensor_finishRead(&touch_value, &proximity_value);
-
-      touch_value = (touch_value >> 8) | (touch_value << 8);
-
       update_sensor_reading(touch_value, proximity_value);
   }
 }

@@ -69,8 +69,8 @@ typedef struct {
  bool bonded;
  bool indication_inflight;
 
- bool HTM_indication_enabled;
- bool Button_indication_enabled;
+ bool touch_indication_enabled;
+ bool proximity_indication_enabled;
 
  queue_struct_t   indication_queue[QUEUE_DEPTH]; // the queue
  uint32_t         wptr;              // write pointer

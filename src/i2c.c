@@ -36,8 +36,21 @@
 #define MPR121_NHD_TOUCHED                  0x33
 #define MPR121_NCL_TOUCHED                  0x34
 #define MPR121_FDL_TOUCHED                  0x35
+#define MPR121_MHD_PROX_RISING              0x36
+#define MPR121_NHD_PROX_RISING              0x37
+#define MPR121_NCL_PROX_RISING              0x38
+#define MPR121_FDL_PROX_RISING              0x39
+#define MPR121_MHD_PROX_FALLING             0x3A
+#define MPR121_NHD_PROX_FALLING             0x3B
+#define MPR121_NCL_PROX_FALLING             0x3C
+#define MPR121_FDL_PROX_FALLING             0x3D
+#define MPR121_NHD_PROX_TOUCHED             0x3E
+#define MPR121_NCL_PROX_TOUCHED             0x3F
+#define MPR121_FDL_PROX_TOUCHED             0x40
 #define MPR121_ELE0_TOUCH_THRESHOLD         0x41
 #define MPR121_ELE0_RELEASE_THRESHOLD       0x42
+#define MPR121_ELEPROX_TOUCH_THRESHOLD      0x59
+#define MPR121_ELEPROX_RELEASE_THRESHOLD    0x5A
 #define MPR121_DEBOUNCE                     0x5B
 #define MPR121_CDC_CONFIG                   0x5C
 #define MPR121_CDT_CONFIG                   0x5D
@@ -96,7 +109,7 @@ void i2c_sensor_init(){
     timerWaitUs_polled(1000);
     MPR121_write_blocking(MPR121_ELECTRODE_CONFIG, 0x00);
 
-    //Default values taken from AN3891
+    //Default electrode values taken from AN3891
     MPR121_write_blocking(MPR121_MHD_RISING,   0x01);
     MPR121_write_blocking(MPR121_NHD_RISING,   0x01);
     MPR121_write_blocking(MPR121_NCL_RISING,   0x00);
@@ -109,11 +122,26 @@ void i2c_sensor_init(){
     MPR121_write_blocking(MPR121_NCL_TOUCHED,  0x00);
     MPR121_write_blocking(MPR121_FDL_TOUCHED,  0x00);
 
+    //Default proximity values taken from AN3893
+    MPR121_write_blocking(MPR121_MHD_PROX_RISING,   0xFF);
+    MPR121_write_blocking(MPR121_NHD_PROX_RISING,   0xFF);
+    MPR121_write_blocking(MPR121_NCL_PROX_RISING,   0x00);
+    MPR121_write_blocking(MPR121_FDL_PROX_RISING,   0x00);
+    MPR121_write_blocking(MPR121_MHD_PROX_FALLING,  0x01);
+    MPR121_write_blocking(MPR121_NHD_PROX_FALLING,  0x01);
+    MPR121_write_blocking(MPR121_NCL_PROX_FALLING,  0xFF);
+    MPR121_write_blocking(MPR121_FDL_PROX_FALLING,  0xFF);
+    MPR121_write_blocking(MPR121_NHD_PROX_TOUCHED,  0x00);
+    MPR121_write_blocking(MPR121_NCL_PROX_TOUCHED,  0x00);
+    MPR121_write_blocking(MPR121_FDL_PROX_TOUCHED,  0x00);
+
     for (uint8_t i = 0; i < 12; i++) {
         MPR121_write_blocking(MPR121_ELE0_TOUCH_THRESHOLD   + (i * 2), 0x0F);
         MPR121_write_blocking(MPR121_ELE0_RELEASE_THRESHOLD + (i * 2), 0x0A);
     }
 
+    MPR121_write_blocking(MPR121_ELEPROX_TOUCH_THRESHOLD,   0x02);
+    MPR121_write_blocking(MPR121_ELEPROX_RELEASE_THRESHOLD, 0x01);
     MPR121_write_blocking(MPR121_CDC_CONFIG, 0x10);
     MPR121_write_blocking(MPR121_CDT_CONFIG, 0x20);
     MPR121_write_blocking(MPR121_DEBOUNCE,   0x00);
@@ -122,7 +150,7 @@ void i2c_sensor_init(){
     MPR121_write_blocking(MPR121_AUTOCONFIG_USL,     201);
     MPR121_write_blocking(MPR121_AUTOCONFIG_LSL,     130);
     MPR121_write_blocking(MPR121_AUTOCONFIG_TARGET,  181);
-    MPR121_write_blocking(MPR121_ELECTRODE_CONFIG, 0x8C);
+    MPR121_write_blocking(MPR121_ELECTRODE_CONFIG, 0xAC);
 }
 
 #define TOUCH_STATUS_LENGTH      2
@@ -138,7 +166,7 @@ I2C_TransferSeq_TypeDef ReadingTransferSequence = {
 };
 
 void sensor_startRead(){
-  I2C_TransferInit (I2C0, &ReadingTransferSequence);
+  I2C_TransferInit(I2C0, &ReadingTransferSequence);
   NVIC_EnableIRQ(I2C0_IRQn);
 }
 
@@ -147,8 +175,8 @@ void sensor_finishRead(uint16_t* touch_value, uint8_t* proximity_value){
 
   uint16_t compound_register = (touchStatusBuffer[0] | touchStatusBuffer[1] << 8);
 
-  *touch_value = compound_register & 0xFFF;
-  *proximity_value = compound_register << 13;
+  *touch_value = compound_register & 0x0FFF;             /* ELE0..ELE11 only */
+  *proximity_value = (compound_register & 0x1000) >> 12; /* bit 12 = ELEPROX */
 }
 
 void i2cEnableSensor(){
@@ -159,4 +187,3 @@ void i2cEnableSensor(){
   GPIO_PinModeSet(I2C0_SCL_PORT, I2C0_SCL_PIN, gpioModeWiredAndPullUp, 1);
   GPIO_PinModeSet(I2C0_SDA_PORT, I2C0_SDA_PIN, gpioModeWiredAndPullUp, 1);
 }
-

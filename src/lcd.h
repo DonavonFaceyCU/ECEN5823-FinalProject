@@ -54,8 +54,8 @@ enum display_row {
 	DISPLAY_ROW_TOUCH_VALUE,        // 7
 	DISPLAY_ROW_PROXIMITY_VALUE,    // 8
 	DISPLAY_ROW_9,                  // 9
-	DISPLAY_ROW_10,                 // 10
-	DISPLAY_ROW_11,                 // 11
+	DISPLAY_ROW_TITLE,              // 10
+	DISPLAY_ROW_STUDENT,            // 11
 	DISPLAY_ROW_ASSIGNMENT,         // 12
 	DISPLAY_NUMBER_OF_ROWS          // 13
 };

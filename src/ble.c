@@ -44,10 +44,6 @@ ble_data_struct_t* get_ble_data(){
 
 uint8_t assignmentNumber = ASSIGNMENT_NUMBER;
 
-bool HTM_indication_allowed(){
-  return ble_data.HTM_indication_enabled;
-}
-
 bool connection_established(){
   return ble_data.connected;
 }
@@ -63,9 +59,6 @@ static uint8_t advertising_set_handle = 0xff;
 //This function is heavily adapted and based on the bt-soc-thermometer example project
 void handle_ble_event(sl_bt_msg_t *evt){
   sl_status_t sc;
-#if DEVICE_IS_BLE_SERVER
-  uint8_t button_state;
-#endif
 
   switch (SL_BT_MSG_ID(evt->header)) {
 
@@ -75,10 +68,11 @@ void handle_ble_event(sl_bt_msg_t *evt){
       //Handle Display aspects first
       displayInit();
       sensor_init();
-      displayPrintf(DISPLAY_ROW_ASSIGNMENT, "A%u", assignmentNumber);
+      displayPrintf(DISPLAY_ROW_TITLE, "Capacitive Keypad");
+      displayPrintf(DISPLAY_ROW_STUDENT, "Donavon Facey");
+      displayPrintf(DISPLAY_ROW_ASSIGNMENT, "Final Project");
       displayPrintf(DISPLAY_ROW_NAME, "Server");
       displayPrintf(DISPLAY_ROW_CONNECTION, "Advertising");
-      displayPrintf(DISPLAY_ROW_9, "Button Released");
       //sl_bt_sm_delete_bondings();
       sl_bt_sm_set_bondable_mode(1);
       sl_bt_sm_configure(SL_BT_SM_CONFIGURATION_MITM_REQUIRED | SL_BT_SM_CONFIGURATION_BONDING_REQUEST_REQUIRED | SL_BT_SM_CONFIGURATION_PREFER_MITM, sm_io_capability_displayyesno);
@@ -157,8 +151,8 @@ void handle_ble_event(sl_bt_msg_t *evt){
       }
 
       ble_data.connected = false;
-      ble_data.HTM_indication_enabled = false;
-      ble_data.Button_indication_enabled = false;
+      ble_data.touch_indication_enabled = false;
+      ble_data.proximity_indication_enabled = false;
       gpioLed0SetOff();
       gpioLed1SetOff();
       //sl_bt_sm_delete_bondings();
@@ -173,10 +167,6 @@ void handle_ble_event(sl_bt_msg_t *evt){
     case sl_bt_evt_system_external_signal_id:
       //On Server, handle PB0 presses
       if(Scheduler_Active_PB0_pressed(evt)){
-          displayPrintf(DISPLAY_ROW_9, "Button Pressed");
-          button_state = 1;
-          sc = sl_bt_gatt_server_write_attribute_value(gattdb_touch_state, 0, 1, &button_state);
-          sendIndication(gattdb_touch_state, 1, &button_state);
           if(ble_data.connected && !ble_data.bonded){
               sl_bt_sm_passkey_confirm(connection_handle,1);
               displayPrintf(DISPLAY_ROW_ACTION, "");
@@ -184,13 +174,8 @@ void handle_ble_event(sl_bt_msg_t *evt){
           }
       }
       if(Scheduler_Active_PB0_released(evt)){
-          displayPrintf(DISPLAY_ROW_9, "Button Released");
-          button_state = 0;
-          sc = sl_bt_gatt_server_write_attribute_value(gattdb_touch_state, 0, 1, &button_state);
-          sendIndication(gattdb_touch_state, 1, &button_state);
+          //Do nothing
       }
-
-      //On Client, this doesn't need to run at all.
       break;
 
     case sl_bt_evt_system_soft_timer_id:
@@ -212,19 +197,16 @@ void handle_ble_event(sl_bt_msg_t *evt){
           else if(client_config_flags == sl_bt_gatt_server_notification)                 {indication_enabled = false;}
           else if(client_config_flags == sl_bt_gatt_server_notification_and_indication)  {indication_enabled = true;}
 
-          if(evt->data.evt_gatt_server_characteristic_status.characteristic == gattdb_temperature_measurement){
-              ble_data.HTM_indication_enabled = indication_enabled;
-              if(indication_enabled){
+          if(evt->data.evt_gatt_server_characteristic_status.characteristic == gattdb_touch_state){
+              ble_data.touch_indication_enabled = indication_enabled;
+              if(ble_data.touch_indication_enabled){
                   gpioLed0SetOn();
-                  LETIMER_IntSet(LETIMER0, LETIMER_IF_UF); //Trigger an UF event to guarantee a temperature measurement is taken after indications are enabled
               } else {
                   gpioLed0SetOff();
-                  displayPrintf(DISPLAY_ROW_TOUCH_VALUE, "");
-                  displayPrintf(DISPLAY_ROW_PROXIMITY_VALUE, "");
               }
-          } else if(evt->data.evt_gatt_server_characteristic_status.characteristic == gattdb_touch_state){
-              ble_data.Button_indication_enabled = indication_enabled;
-              if(indication_enabled){
+          } else if(evt->data.evt_gatt_server_characteristic_status.characteristic == gattdb_proximity_state){
+              ble_data.proximity_indication_enabled = indication_enabled;
+              if(ble_data.proximity_indication_enabled){
                   gpioLed1SetOn();
               } else {
                   gpioLed1SetOff();
@@ -234,14 +216,12 @@ void handle_ble_event(sl_bt_msg_t *evt){
       //confirmation received
       } else if (evt->data.evt_gatt_server_characteristic_status.status_flags == sl_bt_gatt_server_confirmation) {
           ble_data.indication_inflight = false;
-          displayPrintf(DISPLAY_ROW_11, "Inflight False");
           sendIndication(0, 0, 0); // send new Indication without queueing anything
       }
       break;
 
     case sl_bt_evt_gatt_server_indication_timeout_id:
       ble_data.indication_inflight = false;
-      displayPrintf(DISPLAY_ROW_11, "Inflight False");
       //LOG_ERROR("Indication Timed Out");
       break;
 
@@ -296,13 +276,11 @@ static void sendIndication(uint16_t characteristic, size_t value_len, uint8_t* v
   }
 
   //Check conditions for sending indications
-  if((charHandle == gattdb_proximity_state && ble_data.HTM_indication_enabled && ble_data.bonded) ||
-     (charHandle == gattdb_touch_state && ble_data.Button_indication_enabled && ble_data.bonded)){
+  if( (charHandle == gattdb_touch_state && ble_data.touch_indication_enabled && ble_data.bonded) ||
+     (charHandle == gattdb_proximity_state && ble_data.proximity_indication_enabled && ble_data.bonded)){
       sc = sl_bt_gatt_server_send_indication(connection_handle, charHandle, bufLength, buffer);
       static uint32_t indications_sent;
       indications_sent++;
-      displayPrintf(DISPLAY_ROW_10, "Ind Sent: %u", indications_sent);
-      displayPrintf(DISPLAY_ROW_11, "Inflight True");
       ble_data.indication_inflight = true;
   }
 
@@ -323,10 +301,8 @@ void update_sensor_reading(uint16_t touch_value, uint8_t proximity_value){
       //LOG_ERROR("BT STACK INDICATION SEND");
   }
 
-  if(ble_data.HTM_indication_enabled){
-      displayPrintf(DISPLAY_ROW_TOUCH_VALUE, "Touch = 0x%03X\n", touch_value);
-      displayPrintf(DISPLAY_ROW_PROXIMITY_VALUE, "Touch = 0x%01X\n", proximity_value);
-  }
+  displayPrintf(DISPLAY_ROW_TOUCH_VALUE, "Touch = 0x%03X\n", touch_value);
+  displayPrintf(DISPLAY_ROW_PROXIMITY_VALUE, "Proximity = 0x%01X\n", proximity_value);
 }
 
 // -----------------------------------------------
