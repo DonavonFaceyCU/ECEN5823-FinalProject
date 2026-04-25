@@ -290,6 +290,10 @@ static void sendIndication(uint16_t characteristic, size_t value_len, uint8_t* v
 }
 
 void update_sensor_reading(uint16_t touch_value, uint8_t proximity_value){
+  displayPrintf(DISPLAY_ROW_TOUCH_VALUE, "Touch = 0x%03X\n", touch_value);
+  displayPrintf(DISPLAY_ROW_PROXIMITY_VALUE, "Proximity = 0x%01X\n", proximity_value);
+
+  touch_value = (touch_value << 8) | (touch_value >> 8);
   sl_status_t sc;
   sc = sl_bt_gatt_server_write_attribute_value(gattdb_touch_state, 0, 2, (uint8_t*) &touch_value);
   sc = sl_bt_gatt_server_write_attribute_value(gattdb_proximity_state, 0, 1, &proximity_value);
@@ -300,9 +304,6 @@ void update_sensor_reading(uint16_t touch_value, uint8_t proximity_value){
   if(sc != SL_STATUS_OK){
       //LOG_ERROR("BT STACK INDICATION SEND");
   }
-
-  displayPrintf(DISPLAY_ROW_TOUCH_VALUE, "Touch = 0x%03X\n", touch_value);
-  displayPrintf(DISPLAY_ROW_PROXIMITY_VALUE, "Proximity = 0x%01X\n", proximity_value);
 }
 
 // -----------------------------------------------
