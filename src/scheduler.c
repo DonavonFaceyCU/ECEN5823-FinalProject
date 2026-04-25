@@ -11,7 +11,7 @@
 #include "src/log.h"
 
 #define SOFT_TIMER_HANDLE_SENSOR   (0xD4)
-#define SOFT_TIMER_PERIOD   (32768 / 5) // 5 Hz Timer Frequency
+#define SOFT_TIMER_PERIOD   (32768) // 1 Hz Timer Frequency
 #define SOFT_TIMER_SLACK    (20)
 
 void sensor_init(){

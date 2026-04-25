@@ -14,15 +14,15 @@
 #include "src/log.h"
 
 //value = desired period in milliseconds * 1.6 (set to 250ms)
-#define ADVERTISING_INTERVAL_MIN 400
-#define ADVERTISING_INTERVAL_MAX 400
+#define ADVERTISING_INTERVAL_MIN 200
+#define ADVERTISING_INTERVAL_MAX 200
 
 //value = desired period in milliseconds * 0.8 (set to 75ms)
 #define CONNECTION_INTERVAL_MIN 60
 #define CONNECTION_INTERVAL_MAX 60
 
 //value = "off the air" time (milliseconds) / connection interval (milliseconds) (set to 300ms) - 1
-#define CONNECTION_SLAVE_LATENCY 4
+#define CONNECTION_SLAVE_LATENCY 2
 
 //value = (1+slave_latency)*(connection_interval*2)+1
 #define CONNECTION_SUPERVISION_TIMEOUT ((1+CONNECTION_SLAVE_LATENCY)*(75*2)+1)
@@ -161,6 +161,7 @@ void handle_ble_event(sl_bt_msg_t *evt){
     case sl_bt_evt_connection_parameters_id:
       if(evt->data.evt_connection_parameters.security_mode > sl_bt_connection_mode1_level1){
           displayPrintf(DISPLAY_ROW_CONNECTION, "Bonded");
+          ble_data.bonded = true;
       }
       break;
 
@@ -236,7 +237,6 @@ void handle_ble_event(sl_bt_msg_t *evt){
       displayPrintf(DISPLAY_ROW_PASSKEY, "Passkey: %06u", evt->data.evt_sm_confirm_passkey.passkey);
       break;
     case sl_bt_evt_sm_bonded_id:
-      ble_data.bonded = true;
       break;
 
     default: //do nothing
